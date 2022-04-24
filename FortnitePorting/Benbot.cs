@@ -1,20 +1,25 @@
-﻿using Serilog;
+﻿using Newtonsoft.Json.Linq;
+using Serilog;
 
 namespace FortnitePorting;
 
 public static class Benbot
 {
-    private static HttpClient _httpClient = new()
+    private static readonly HttpClient _httpClient = new()
     {
         Timeout = TimeSpan.FromSeconds(2), 
         DefaultRequestHeaders = {{ "User-Agent", "FortnitePorting" }}
     };
     
-    public static void GetCosmeticPath(string input, string backendType)
+    public static string GetCosmeticPath(string input, string backendType)
     {
         var requestUri = $"https://benbot.app/api/v1/cosmetics/br/search/all?&name={input}&backendType={backendType}";
         var response = _httpClient.GetAsync(requestUri).Result;
-        Log.Information(response.Content.ToString());
+
+        var responseString = response.Content.ReadAsStringAsync().Result;
+        var json = JArray.Parse(responseString);
+
+        return json[0]["path"].ToString();
     }
 
 }

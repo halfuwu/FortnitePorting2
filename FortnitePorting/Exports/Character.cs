@@ -11,11 +11,14 @@ public static class Character
 {
     public static ExportFile? Export(string input)
     {
-        var export = new ExportFile();
+        var path = $"FortniteGame/Content/Athena/Items/Cosmetics/Characters/{input}.{input}";
+        if (!input.StartsWith("CID_")) 
+            path = Benbot.GetCosmeticPath(input, "AthenaCharacter");
         
-        var path = $"FortniteGame/Content/Athena/Items/Cosmetics/Characters/{input}";
+        
         if (Provider.TryLoadObject(path, out var character))
         {
+            var export = new ExportFile();
             export.name = character.Get<FText>("DisplayName").Text;
             
             var parts = character.Get<UObject[]>("BaseCharacterParts");
@@ -24,7 +27,7 @@ public static class Character
 
             var styles = character.GetOrDefault("ItemVariants", Array.Empty<UObject>());
             AssetHelpers.ExportStyles(styles, ref export);
-            
+
             return export;
         }
 

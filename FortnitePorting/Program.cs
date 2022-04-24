@@ -13,33 +13,52 @@ namespace FortnitePorting;
 public static class Program
 {
     public static DefaultFileProvider Provider;
+    private static Configuration _config;
     private static readonly DirectoryInfo _exportDirectory = new(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Exports"));
+    private static readonly DirectoryInfo _dataDirectory = new(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".data"));
     public static readonly DirectoryInfo _saveDirectory = new(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Saves"));
     
     private static readonly Dictionary<string, Func<string, ExportFile?>> _exports = new()
     {
         {"-character", Character.Export},
+        {"-mesh", Mesh.Export},
     };
 
     public static void Main(string[] args)
     {
+        Console.Title = "Fortnite Porting";
         Log.Logger = new LoggerConfiguration().WriteTo.Console().CreateLogger();
         
         if (args.Length == 0)
         {
             Log.Error("No command arguments found");
-            return;
+            Exit(0);
         }
 
-        const string GamePath = @"C:/Fortnite/FortniteGame/Content/Paks/";
-        const string Key = "0x53839BA2A77AE393588184ACBD18EDBC935CA60D554F9D29BC3F135E426C4A6F";
+        _config = JsonConvert.DeserializeObject<Configuration>(File.ReadAllText("config.json"));
+        if (_config == null)
+        {
+            Log.Error("Failed to load config");
+            Exit(0);
+        }
+        
+
+        var GamePath = _config.PaksFolder;
+        var Key = _config.MainKey;
 
         Provider = new DefaultFileProvider(GamePath, SearchOption.AllDirectories, true,
             new VersionContainer(EGame.GAME_UE5_LATEST));
         Provider.Initialize();
         Provider.SubmitKey(new FGuid(), new FAesKey(Key));
-        Provider.MappingsContainer =
-            new FileUsmapTypeMappingsProvider(".data/++Fortnite+Release-20.00-CL-19381079-Windows_oo.usmap");
+        foreach (var Entry in _config.DynamicKeys)
+        {
+            Provider.SubmitKey(new FGuid(Entry.Guid), new FAesKey(Entry.Key));
+        }
+
+        var usmap = GetNewestUsmap(_dataDirectory.FullName);
+        if (usmap == null) Provider.LoadMappings();
+        else Provider.MappingsContainer =
+            new FileUsmapTypeMappingsProvider(usmap);
         Directory.CreateDirectory(_exportDirectory.FullName);
         Directory.CreateDirectory(_saveDirectory.FullName);
 
@@ -59,8 +78,28 @@ public static class Program
         File.WriteAllText(Path.Combine(_exportDirectory.FullName, export?.name + ".json"), exportJson);
         sw.Stop();
         
-        Log.Information("Finished exporting {0} in {1}s", export?.name, sw.Elapsed.TotalSeconds);
+        Log.Information("Finished exporting {0} in {1}s", export?.name, Math.Round(sw.Elapsed.TotalSeconds, 2));
         Exit(0);
+    }
+    
+    private static string? GetNewestUsmap(string mappingsFolder)
+    {
+        if (!Directory.Exists(mappingsFolder))
+            return null;
+
+        var directory = new DirectoryInfo(mappingsFolder);
+        var selectedFilePath = string.Empty;
+        var modifiedTime = long.MinValue;
+        foreach (var file in directory.GetFiles())
+        {
+            if (file.Name.EndsWith(".usmap") && file.LastWriteTime.ToFileTimeUtc() > modifiedTime)
+            {
+                selectedFilePath = file.FullName;
+                modifiedTime = file.LastWriteTime.ToFileTimeUtc();
+            }
+        }
+
+        return selectedFilePath;
     }
 
     public static void Exit(int code)
@@ -68,5 +107,18 @@ public static class Program
         Console.WriteLine("Press any button to exit...");
         Console.ReadKey();
         Environment.Exit(code);
+    }
+
+    private class Configuration
+    {
+        public string PaksFolder;
+        public string MainKey;
+        public List<DynamicKey> DynamicKeys;
+
+        public class DynamicKey
+        {
+            public string Guid;
+            public string Key;
+        }
     }
 }

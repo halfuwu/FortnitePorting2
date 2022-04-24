@@ -14,6 +14,7 @@ public class ExportPart
 {
     public string meshPath;
     public string slotType;
+    public string socketName;
     public List<ExportMaterial> materials;
 }
 
