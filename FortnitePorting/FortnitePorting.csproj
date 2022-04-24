@@ -12,16 +12,4 @@
       <ProjectReference Include="..\CUE4Parse\CUE4Parse\CUE4Parse.csproj" />
     </ItemGroup>
 
-    <ItemGroup>
-      <None Include="bin\Debug\net6.0\config.json" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <Content Include="bin\Debug\net6.0\config.json" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <Folder Include="bin\Debug\net6.0" />
-    </ItemGroup>
-
 </Project>
