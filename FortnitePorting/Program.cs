@@ -27,21 +27,22 @@ public static class Program
     public static void Main(string[] args)
     {
         Console.Title = "Fortnite Porting";
-        Log.Logger = new LoggerConfiguration().WriteTo.Console().CreateLogger();
+       
+        File.WriteAllText("FortnitePorting.log", string.Empty);
+        Log.Logger = new LoggerConfiguration().WriteTo.Console().WriteTo.File("FortnitePorting.log").CreateLogger();
         
         if (args.Length == 0)
         {
             Log.Error("No command arguments found");
-            Exit(0);
+            Exit(1);
         }
 
         _config = JsonConvert.DeserializeObject<Configuration>(File.ReadAllText("config.json"));
         if (_config == null)
         {
             Log.Error("Failed to load config");
-            Exit(0);
+            Exit(1);
         }
-        
 
         var GamePath = _config.PaksFolder;
         var Key = _config.MainKey;
@@ -65,7 +66,7 @@ public static class Program
         var sw = new Stopwatch();
         sw.Start();
         var type = args[0];
-        var input = args[1];
+        var input = args[1].Trim();
         var export = _exports[type](input);
 
         if (export == null)

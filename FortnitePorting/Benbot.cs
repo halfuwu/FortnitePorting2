@@ -19,6 +19,12 @@ public static class Benbot
         var responseString = response.Content.ReadAsStringAsync().Result;
         var json = JArray.Parse(responseString);
 
+        if (json.Count == 0)
+        {
+            Log.Error("Failed to find {0}", input);
+            Program.Exit(1);
+        }
+
         return json[0]["path"].ToString();
     }
 

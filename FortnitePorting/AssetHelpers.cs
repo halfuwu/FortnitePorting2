@@ -25,22 +25,29 @@ public static class AssetHelpers
         foreach (var part in parts)
         {
             var exportPart = new ExportPart();
-            
-            var skeletalMesh = part.Get<USkeletalMesh>("SkeletalMesh");
+
+            if (!part.TryGetValue(out USkeletalMesh skeletalMesh, "SkeletalMesh")) 
+                continue;
             ExportObject(skeletalMesh);
             exportPart.meshPath = skeletalMesh.GetPathName();
 
-            part.TryGetValue(out EFortCustomPartType slotType, "CharacterPartType");
+            part.TryGetValue<EFortCustomPartType>(out var slotType, "CharacterPartType");
             exportPart.slotType = slotType.ToString();
-            
-            if (part.TryGetValue(out UObject AdditionalData, "AdditionalData"))
+
+            if (part.TryGetValue<UObject>(out var AdditionalData, "AdditionalData"))
             {
-                exportPart.socketName = AdditionalData.GetOrDefault<FName>("AttachSocketName", null, StringComparison.OrdinalIgnoreCase).Text;
+                exportPart.socketName = AdditionalData
+                    .GetOrDefault<FName>("AttachSocketName", null, StringComparison.OrdinalIgnoreCase).Text;
             }
+
+            
+            
+
+
 
             skeletalMesh.TryConvert(out var convertedMesh);
             if (convertedMesh.LODs.Count == 0) continue;
-
+            
             exportPart.materials = new List<ExportMaterial>();
             foreach (var (section, matIdx) in convertedMesh.LODs[0].Sections.Value.Enumerate())
             {
@@ -236,6 +243,7 @@ public static class AssetHelpers
         
         return parameters;
     }
+
     public static void ExportObject(UObject file)
     {
         try
@@ -246,6 +254,7 @@ public static class AssetHelpers
                 {
                     //Log.Information("Saving {0}", file);
                     var exporter = new MeshExporter(skeletalMesh, ELodFormat.FirstLod, false);
+                    
                     exporter.TryWriteToDir(_saveDirectory, out var _);
                 });
             }
@@ -303,6 +312,15 @@ public static class AssetHelpers
         Face,
         Gameplay,
         NumTypes
+    }
+
+    private enum ECustomHatType
+    {
+        HeadReplacement,
+        Cap,
+        Mask,
+        Helmet,
+        Hat
     }
 
     public static IEnumerable<(T item, int index)> Enumerate<T>(this IEnumerable<T> self)

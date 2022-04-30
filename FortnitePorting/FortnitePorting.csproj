@@ -12,4 +12,8 @@
       <ProjectReference Include="..\CUE4Parse\CUE4Parse\CUE4Parse.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <PackageReference Include="Serilog.Sinks.File" Version="5.0.1-dev-00947" />
+    </ItemGroup>
+
 </Project>

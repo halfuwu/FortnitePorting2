@@ -14,8 +14,8 @@ public static class Character
         var path = $"FortniteGame/Content/Athena/Items/Cosmetics/Characters/{input}.{input}";
         if (!input.StartsWith("CID_")) 
             path = Benbot.GetCosmeticPath(input, "AthenaCharacter");
-        
-        
+
+
         if (Provider.TryLoadObject(path, out var character))
         {
             var export = new ExportFile();
