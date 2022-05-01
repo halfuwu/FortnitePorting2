@@ -30,8 +30,7 @@ public class ExportVariantMaterial
     public string overrideMaterial;
     public string materialToSwap;
     public int matIdx;
-
-    public ExportMaterialParameters MaterialParameters;
+    public ExportMaterialParameters matParameters;
 }
 
 public class ExportMaterialParameters
