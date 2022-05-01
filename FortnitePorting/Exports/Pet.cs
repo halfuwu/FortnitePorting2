@@ -19,6 +19,7 @@ public static class Pet
         if (Provider.TryLoadObject(path, out var pet))
         {
             var export = new ExportFile();
+            export.type = "Pet";
             export.name = pet.Get<FText>("DisplayName").Text;
             export.baseStyle = new List<ExportPart>();
             

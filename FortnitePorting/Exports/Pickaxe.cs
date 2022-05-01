@@ -17,6 +17,7 @@ public static class Pickaxe
         if (Provider.TryLoadObject(path, out var pickaxe))
         {
             var export = new ExportFile();
+            export.type = "Pickaxe";
             export.name = pickaxe.Get<FText>("DisplayName").Text;
             export.baseStyle = new List<ExportPart>();
             

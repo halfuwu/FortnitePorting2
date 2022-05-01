@@ -16,6 +16,7 @@ public static class Backpack
         if (Provider.TryLoadObject(path, out var backpack))
         {
             var export = new ExportFile();
+            export.type = "Backpack";
             export.name = backpack.Get<FText>("DisplayName").Text;
             
             var parts = backpack.Get<UObject[]>("CharacterParts");

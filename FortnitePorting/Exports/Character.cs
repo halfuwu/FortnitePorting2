@@ -16,6 +16,7 @@ public static class Character
         if (Provider.TryLoadObject(path, out var character))
         {
             var export = new ExportFile();
+            export.type = "Character";
             export.name = character.Get<FText>("DisplayName").Text;
             
             var parts = character.Get<UObject[]>("BaseCharacterParts");

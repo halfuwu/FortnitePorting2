@@ -16,6 +16,7 @@ public class Mesh
         if (Provider.TryLoadObject(path, out var mesh))
         {
             var export = new ExportFile();
+            export.type = "Mesh";
             export.name = mesh.Name;
             export.baseStyle = new List<ExportPart>();
 
@@ -23,7 +24,6 @@ public class Mesh
             export.baseStyle.Add(exportPart);
 
             exportPart.meshPath = mesh.GetPathName();
-            exportPart.slotType = "Mesh";
 
             switch (mesh.ExportType)
             {

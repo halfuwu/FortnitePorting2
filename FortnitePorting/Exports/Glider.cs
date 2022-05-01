@@ -18,6 +18,7 @@ public static class Glider
         if (Provider.TryLoadObject(path, out var glider))
         {
             var export = new ExportFile();
+            export.type = "Glider";
             export.name = glider.Get<FText>("DisplayName").Text;
             export.baseStyle = new List<ExportPart>();
             

@@ -5,6 +5,7 @@ namespace FortnitePorting;
 public class ExportFile
 {
     public string name;
+    public string type;
     public List<ExportPart> baseStyle;
     public List<ExportPart> variantParts;
     public List<ExportVariantMaterial> variantMaterials;
