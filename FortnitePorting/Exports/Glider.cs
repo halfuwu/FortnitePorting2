@@ -11,7 +11,7 @@ public static class Glider
     public static ExportFile? Export(string input)
     {
         var path = $"FortniteGame/Content/Athena/Items/Cosmetics/Gliders/{input}.{input}";
-        if (!input.StartsWith("Glider_ID")) 
+        if (!input.StartsWith("Glider_ID_")) 
             path = Benbot.GetCosmeticPath(input, "AthenaGlider");
 
 

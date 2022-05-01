@@ -24,6 +24,7 @@ public static class FortnitePorting
         {"-backpack", Backpack.Export},
         {"-pet", Pet.Export},
         {"-glider", Glider.Export},
+        {"-pickaxe", Pickaxe.Export},
         {"-mesh", Mesh.Export},
     };
 
@@ -95,6 +96,7 @@ public static class FortnitePorting
         {
             Log.Fatal(e.StackTrace);
             Log.Fatal("An error occurred, please report this issue");
+            Exit(1);
         }
         
         if (!_config.bCloseOnFinish)

@@ -110,8 +110,11 @@ public static class AssetHelpers
                 "FortCosmeticCharacterPartVariant" => PromptStyle(style, "PartOptions"),
                 "FortCosmeticMaterialVariant" => PromptStyle(style, "MaterialOptions"),
                 "FortCosmeticParticleVariant" => PromptStyle(style, "ParticleOptions"),
-                _ => default
+                _ => null
             };
+            
+            if (selectedStyle == null)
+                continue;
 
             if (selectedStyle.TryGetValue(out UObject[] variantParts, "VariantParts")  && variantParts.Length > 0)
             {
