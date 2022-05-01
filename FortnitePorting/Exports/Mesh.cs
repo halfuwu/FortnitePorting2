@@ -53,7 +53,7 @@ public class Mesh
         return null;
     }
 
-    private static void ExportMesh(Lazy<CMeshSection[]> sections, ref ExportPart part)
+    public static void ExportMesh(Lazy<CMeshSection[]> sections, ref ExportPart part)
     {
         part.materials = new List<ExportMaterial>();
         foreach (var (section, matIdx) in sections.Value.Enumerate())
@@ -67,7 +67,7 @@ public class Mesh
                     {
                         matPath = materialInstance.GetPathName(),
                         matIdx = matIdx,
-                        matParameters = AssetHelpers.ExportMaterialParams(materialInstance as UMaterialInstanceConstant)
+                        matParameters = AssetHelpers.ExportMaterialParams(materialInstance)
                     };
                     part.materials.Add(material);
                 }
