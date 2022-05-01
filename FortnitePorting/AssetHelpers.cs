@@ -41,11 +41,6 @@ public static class AssetHelpers
                     .GetOrDefault<FName>("AttachSocketName", null, StringComparison.OrdinalIgnoreCase).Text;
             }
 
-            
-            
-
-
-
             skeletalMesh.TryConvert(out var convertedMesh);
             if (convertedMesh.LODs.Count == 0) continue;
             
@@ -80,23 +75,28 @@ public static class AssetHelpers
 
             if (part.TryGetValue(out FStructFallback[] overrides, "MaterialOverrides"))
             {
-                foreach (var matOverride in overrides)
-                {
-                    var materialPath = matOverride.Get<FSoftObjectPath>("OverrideMaterial");
-                    if (materialPath.TryLoad(out UMaterialInstanceConstant materialInstance))
-                    {
-                        var material = new ExportMaterial
-                        {
-                            matPath = materialInstance.GetPathName(),
-                            matIdx = matOverride.Get<int>("MaterialOverrideIndex"),
-                            matParameters = ExportMaterialParams(materialInstance)
-                        };
-                        exportPart.materials.Add(material);
-                    }
-                }
+                ExportOverrideMaterials(overrides, ref exportPart);
             }
             
             exportParts.Add(exportPart);
+        }
+    }
+
+    public static void ExportOverrideMaterials(FStructFallback[] overrides, ref ExportPart exportPart)
+    {
+        foreach (var matOverride in overrides)
+        {
+            var materialPath = matOverride.Get<FSoftObjectPath>("OverrideMaterial");
+            if (materialPath.TryLoad(out UMaterialInstanceConstant materialInstance))
+            {
+                var material = new ExportMaterial
+                {
+                    matPath = materialInstance.GetPathName(),
+                    matIdx = matOverride.Get<int>("MaterialOverrideIndex"),
+                    matParameters = ExportMaterialParams(materialInstance)
+                };
+                exportPart.materials.Add(material);
+            }
         }
     }
 

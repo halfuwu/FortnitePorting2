@@ -23,6 +23,7 @@ public static class FortnitePorting
         {"-character", Character.Export},
         {"-backpack", Backpack.Export},
         {"-pet", Pet.Export},
+        {"-glider", Glider.Export},
         {"-mesh", Mesh.Export},
     };
 

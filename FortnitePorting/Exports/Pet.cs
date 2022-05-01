@@ -34,29 +34,11 @@ public static class Pet
             var petMeshComponent = components.Get<UObject>("PetMesh");
             
             var mesh = petMeshComponent.Get<USkeletalMesh>("SkeletalMesh");
-            AssetHelpers.ExportObject(mesh);
-            exportPart.meshPath = mesh.GetPathName();
-            
-            mesh.TryConvert(out var convertedMesh);
-            if (convertedMesh.LODs.Count == 0) return null;
-            Mesh.ExportMesh(convertedMesh.LODs[0].Sections, ref exportPart);
+            Mesh.ExportSkeletalMesh(mesh, ref exportPart);
 
             if (pet.TryGetValue<FStructFallback[]>(out var materialOverrides, "MaterialOverrides"))
             {
-                foreach (var materialOverride in materialOverrides)
-                {
-                    var materialPath = materialOverride.Get<FSoftObjectPath>("OverrideMaterial");
-                    if (materialPath.TryLoad(out UMaterialInstanceConstant materialInstance))
-                    {
-                        var material = new ExportMaterial
-                        {
-                            matPath = materialInstance.GetPathName(),
-                            matIdx = materialOverride.Get<int>("MaterialOverrideIndex"),
-                            matParameters = AssetHelpers.ExportMaterialParams(materialInstance)
-                        };
-                        exportPart.materials.Add(material);
-                    }
-                }
+                AssetHelpers.ExportOverrideMaterials(materialOverrides, ref exportPart);
             }
             
            

@@ -33,7 +33,7 @@ public class Mesh
                     AssetHelpers.ExportObject(mesh);
                     staticMesh.TryConvert(out var convertedMesh);
                     if (convertedMesh.LODs.Count == 0) return null;
-                    ExportMesh(convertedMesh.LODs[0].Sections, ref exportPart);
+                    ExportMeshSection(convertedMesh.LODs[0].Sections, ref exportPart);
                     break;
                 }
                 case "SkeletalMesh":
@@ -42,7 +42,7 @@ public class Mesh
                     AssetHelpers.ExportObject(mesh);
                     skeletalMesh.TryConvert(out var convertedMesh);
                     if (convertedMesh.LODs.Count == 0) return null;
-                    ExportMesh(convertedMesh.LODs[0].Sections, ref exportPart);
+                    ExportMeshSection(convertedMesh.LODs[0].Sections, ref exportPart);
                     break;
                 }
             }
@@ -53,7 +53,17 @@ public class Mesh
         return null;
     }
 
-    public static void ExportMesh(Lazy<CMeshSection[]> sections, ref ExportPart part)
+    public static void ExportSkeletalMesh(USkeletalMesh skelmesh, ref ExportPart part)
+    {
+        AssetHelpers.ExportObject(skelmesh);
+        part.meshPath = skelmesh.GetPathName();
+            
+        skelmesh.TryConvert(out var convertedMesh);
+        if (convertedMesh.LODs.Count == 0) return;
+        ExportMeshSection(convertedMesh.LODs[0].Sections, ref part);
+    }
+
+    private static void ExportMeshSection(Lazy<CMeshSection[]> sections, ref ExportPart part)
     {
         part.materials = new List<ExportMaterial>();
         foreach (var (section, matIdx) in sections.Value.Enumerate())
