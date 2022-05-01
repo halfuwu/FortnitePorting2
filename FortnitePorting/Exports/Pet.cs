@@ -15,7 +15,7 @@ public static class Pet
 {
     public static ExportFile? Export(string input)
     {
-        var path = $"FortniteGame/Content/Athena/Items/Cosmetics/Characters/{input}.{input}";
+        var path = $"FortniteGame/Content/Athena/Items/Cosmetics/Pets/{input}.{input}";
         if (!input.StartsWith("PetID_")) 
             path = Benbot.GetCosmeticPath(input, "AthenaPet");
 

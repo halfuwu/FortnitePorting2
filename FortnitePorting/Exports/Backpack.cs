@@ -8,7 +8,7 @@ public static class Backpack
 {
     public static ExportFile? Export(string input)
     {
-        var path = $"FortniteGame/Content/Athena/Items/Cosmetics/Characters/{input}.{input}";
+        var path = $"FortniteGame/Content/Athena/Items/Cosmetics/Backpacks/{input}.{input}";
         if (!input.StartsWith("BID_")) 
             path = Benbot.GetCosmeticPath(input, "AthenaBackpack");
 
