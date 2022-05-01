@@ -21,7 +21,7 @@ public static class Benbot
 
         if (json.Count == 0)
         {
-            Log.Error("Failed to find {0}", input);
+            Log.Error("Failed to find {0}: {1}", backendType.Replace("Athena", string.Empty), input);
             FortnitePorting.Exit(1);
         }
 
