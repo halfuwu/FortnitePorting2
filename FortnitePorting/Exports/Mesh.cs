@@ -3,8 +3,7 @@ using CUE4Parse.UE4.Assets.Exports.SkeletalMesh;
 using CUE4Parse.UE4.Assets.Exports.StaticMesh;
 using CUE4Parse_Conversion.Meshes;
 using CUE4Parse_Conversion.Meshes.PSK;
-using Serilog;
-using static FortnitePorting.Program;
+using static FortnitePorting.FortnitePorting;
 
 namespace FortnitePorting.Exports;
 

@@ -1,9 +1,6 @@
 ﻿using CUE4Parse.UE4.Assets.Exports;
 using CUE4Parse.UE4.Objects.Core.i18N;
-using CUE4Parse.UE4.Objects.UObject;
-using Newtonsoft.Json;
-using Serilog;
-using static FortnitePorting.Program;
+using static FortnitePorting.FortnitePorting;
 
 namespace FortnitePorting.Exports;
 

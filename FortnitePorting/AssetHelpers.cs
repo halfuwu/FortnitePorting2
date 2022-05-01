@@ -14,12 +14,13 @@ using CUE4Parse_Conversion.Meshes;
 using CUE4Parse_Conversion.Textures;
 using Serilog;
 using SkiaSharp;
-using static FortnitePorting.Program;
+using static FortnitePorting.FortnitePorting;
 
 namespace FortnitePorting;
 
 public static class AssetHelpers
 {
+    public static List<Task> RunningTasks = new();
     public static void ExportCharacterParts(IEnumerable<UObject> parts, List<ExportPart> exportParts)
     {
         foreach (var part in parts)
@@ -129,7 +130,7 @@ public static class AssetHelpers
                             overrideMaterial = material.Get<FSoftObjectPath>("OverrideMaterial").AssetPathName.Text,
                             matIdx = material.Get<int>("MaterialOverrideIndex"),
                             materialToSwap = material.Get<FSoftObjectPath>("MaterialToSwap").AssetPathName.Text,
-                            MaterialParameters = ExportMaterialParams(overrideMaterial)
+                            matParameters = ExportMaterialParams(overrideMaterial)
                         });
                     }
                 }
@@ -246,32 +247,22 @@ public static class AssetHelpers
 
     public static void ExportObject(UObject file)
     {
-        try
+        RunningTasks.Add(Task.Run(() =>
         {
-            if (!File.Exists(GetExportPath(file, "psk", "_LOD0")) && file is USkeletalMesh skeletalMesh)
+            try
             {
-                ThreadPool.QueueUserWorkItem(_ =>
+                if (!File.Exists(GetExportPath(file, "psk", "_LOD0")) && file is USkeletalMesh skeletalMesh)
                 {
-                    //Log.Information("Saving {0}", file);
                     var exporter = new MeshExporter(skeletalMesh, ELodFormat.FirstLod, false);
-                    
-                    exporter.TryWriteToDir(_saveDirectory, out var _);
-                });
-            }
-            else if (!File.Exists(GetExportPath(file, "pskx", "_LOD0")) && file is UStaticMesh staticMesh)
-            {
-                ThreadPool.QueueUserWorkItem(_ =>
+                    exporter.TryWriteToDir(_saveDirectory, out _);
+                }
+                else if (!File.Exists(GetExportPath(file, "pskx", "_LOD0")) && file is UStaticMesh staticMesh)
                 {
-                    //Log.Information("Saving {0}", file);
                     var exporter = new MeshExporter(staticMesh, ELodFormat.FirstLod, false);
-                    exporter.TryWriteToDir(_saveDirectory, out var _);
-                });
-            }
-            else if (!File.Exists(GetExportPath(file, "png")) && file is UTexture2D texture)
-            {
-                ThreadPool.QueueUserWorkItem(_ =>
+                    exporter.TryWriteToDir(_saveDirectory, out _);
+                }
+                else if (!File.Exists(GetExportPath(file, "png")) && file is UTexture2D texture)
                 {
-                    //Log.Information("Saving {0}", file);
                     var texturePath = GetExportPath(file, "png");
                     Directory.CreateDirectory(texturePath.Replace('\\', '/').SubstringBeforeLast('/'));
                     using var bitmap = texture.Decode(texture.GetFirstMip());
@@ -279,20 +270,16 @@ public static class AssetHelpers
                     using var stream = new FileStream(texturePath, FileMode.Create, FileAccess.Write);
 
                     data?.AsStream().CopyTo(stream);
-                });
-            }
-            else if (!File.Exists(GetExportPath(file, "psa", "_SEQ0")) && file is UAnimSequence anim)
-            {
-                ThreadPool.QueueUserWorkItem(_ =>
+                }
+                else if (!File.Exists(GetExportPath(file, "psa", "_SEQ0")) && file is UAnimSequence anim)
                 {
-                    //Log.Information("Saving {0}", file);
                     var exporter = new AnimExporter(anim);
-                    exporter.TryWriteToDir(_saveDirectory, out var _);
-                });
+                    exporter.TryWriteToDir(_saveDirectory, out _);
+                }
             }
-        }
-        catch (IOException) {}
-    }
+            catch (IOException) {}
+        }));
+}
     private static string GetExportPath(UObject obj, string ext, string extra = "")
     {
         var path = obj.Owner.Name;

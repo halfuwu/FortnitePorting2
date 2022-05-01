@@ -7,7 +7,7 @@ public static class Benbot
 {
     private static readonly HttpClient _httpClient = new()
     {
-        Timeout = TimeSpan.FromSeconds(2), 
+        Timeout = TimeSpan.FromSeconds(5), 
         DefaultRequestHeaders = {{ "User-Agent", "FortnitePorting" }}
     };
     
@@ -22,7 +22,7 @@ public static class Benbot
         if (json.Count == 0)
         {
             Log.Error("Failed to find {0}", input);
-            Program.Exit(1);
+            FortnitePorting.Exit(1);
         }
 
         return json[0]["path"].ToString();
