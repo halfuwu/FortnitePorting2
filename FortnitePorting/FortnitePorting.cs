@@ -25,6 +25,7 @@ public static class FortnitePorting
         {"-pet", Pet.Export},
         {"-glider", Glider.Export},
         {"-pickaxe", Pickaxe.Export},
+        {"-emote", Emote.Export},
         {"-mesh", Mesh.Export},
     };
 
@@ -87,7 +88,8 @@ public static class FortnitePorting
             var exportJson = JsonConvert.SerializeObject(export,
                 new JsonSerializerSettings
                     { Formatting = Formatting.Indented, NullValueHandling = NullValueHandling.Ignore });
-            File.WriteAllText(Path.Combine(_exportDirectory.FullName, export?.name + ".json"), exportJson);
+            Directory.CreateDirectory(Path.Combine(_exportDirectory.FullName, export?.type));
+            File.WriteAllText(Path.Combine(_exportDirectory.FullName, export.type, export?.name + ".json"), exportJson);
             sw.Stop();
 
             Log.Information("Finished exporting {0} in {1}s", export?.name, Math.Round(sw.Elapsed.TotalSeconds, 2));

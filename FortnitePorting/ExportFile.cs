@@ -6,6 +6,7 @@ public class ExportFile
 {
     public string name;
     public string type;
+    public ExportAnim animPart;
     public List<ExportPart> baseStyle;
     public List<ExportPart> variantParts;
     public List<ExportVariantMaterial> variantMaterials;
@@ -17,6 +18,11 @@ public class ExportPart
     public string slotType;
     public string socketName;
     public List<ExportMaterial> materials;
+}
+
+public class ExportAnim
+{
+    public string animPath;
 }
 
 public class ExportMaterial
