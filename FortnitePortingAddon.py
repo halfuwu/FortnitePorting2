@@ -15,7 +15,7 @@ import json
 bl_info = {
     "name": "Fortnite Porting",
     "author": "Half",
-    "version": (1, 0, 0),
+    "version": (0, 0, 2),
     "blender": (3, 0, 0),
     "location": "View3D > Sidebar > Fortnite Porting",
     "description": "Blender Addon for Fortnite Porting",
