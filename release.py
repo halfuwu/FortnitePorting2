@@ -21,6 +21,5 @@ with zipfile.ZipFile('Release/FortnitePorting.zip', 'w') as mainZip:
     mainZip.write('config.json')
     mainZip.write('FortnitePortingAddon.py')
 
-os.remove('Release/FortnitePortingAddon.zip')
 
 
