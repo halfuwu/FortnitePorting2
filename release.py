@@ -12,7 +12,7 @@ except FileExistsError:
 for file in glob.glob(publishPath + "**"):
     os.remove(file)
 
-os.system(f'dotnet publish -c Release -r win-x64 -o "{publishPath}" --no-self-contained -p:PublishSingleFile=true -p:IncludeAllContentForSelfExtract=true -p:DebugType=None -p:DebugSymbols=false')
+os.system(f'dotnet publish -c Release -r win-x64 -o "{publishPath}" --self-contained -p:PublishSingleFile=true -p:IncludeAllContentForSelfExtract=true -p:DebugType=None -p:DebugSymbols=false')
 
 with zipfile.ZipFile('Release/FortnitePortingAddon.zip', 'w') as addonZip:
     addonZip.write('FortnitePortingAddon.py', 'FortnitePorting/FortnitePortingAddon.py')

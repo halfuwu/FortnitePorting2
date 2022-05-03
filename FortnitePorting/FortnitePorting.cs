@@ -89,7 +89,7 @@ public static class FortnitePorting
                 new JsonSerializerSettings
                     { Formatting = Formatting.Indented, NullValueHandling = NullValueHandling.Ignore });
             Directory.CreateDirectory(Path.Combine(_exportDirectory.FullName, export?.type));
-            File.WriteAllText(Path.Combine(_exportDirectory.FullName, export.type, export?.name + ".json"), exportJson);
+            File.WriteAllText(Path.Combine(_exportDirectory.FullName, export.type, export.name + ".json"), exportJson);
             sw.Stop();
 
             Log.Information("Finished exporting {0} in {1}s", export?.name, Math.Round(sw.Elapsed.TotalSeconds, 2));
