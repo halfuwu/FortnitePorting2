@@ -14,9 +14,10 @@ public static class FortnitePorting
 {
     public static DefaultFileProvider Provider;
     private static Configuration _config;
+    public static readonly DirectoryInfo _saveDirectory = new(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Saves"));
     private static readonly DirectoryInfo _exportDirectory = new(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Exports"));
     private static readonly DirectoryInfo _dataDirectory = new(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".data"));
-    public static readonly DirectoryInfo _saveDirectory = new(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Saves"));
+  
     
     private static readonly Dictionary<string, Func<string, ExportFile?>> _exports = new()
     {
@@ -34,9 +35,13 @@ public static class FortnitePorting
         try
         {
             Console.Title = "Fortnite Porting";
+            
+            Directory.CreateDirectory(_exportDirectory.FullName);
+            Directory.CreateDirectory(_saveDirectory.FullName);
+            
+            var logPath = $"Logs/FortnitePorting-{DateTime.UtcNow:yyyy-MM-dd-hh-mm-ss}.log";
+            Log.Logger = new LoggerConfiguration().WriteTo.Console().WriteTo.File(logPath).CreateLogger();
 
-            File.WriteAllText("FortnitePorting.log", string.Empty);
-            Log.Logger = new LoggerConfiguration().WriteTo.Console().WriteTo.File("FortnitePorting.log").CreateLogger();
 
             if (args.Length == 0)
             {
@@ -54,8 +59,11 @@ public static class FortnitePorting
             var GamePath = _config.PaksFolder;
             var Key = _config.MainKey;
 
-            Provider = new DefaultFileProvider(GamePath, SearchOption.AllDirectories, true,
-                new VersionContainer(EGame.GAME_UE5_LATEST));
+            Provider = new DefaultFileProvider(new DirectoryInfo(GamePath), new List<DirectoryInfo>
+                {
+                    new(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) + "\\FortniteGame\\Saved\\PersistentDownloadDir\\InstalledBundles"),
+                }, 
+                SearchOption.AllDirectories, true, new VersionContainer(EGame.GAME_UE5_LATEST));
             Provider.Initialize();
             Provider.SubmitKey(new FGuid(), new FAesKey(Key));
             foreach (var Entry in _config.DynamicKeys)
@@ -68,8 +76,6 @@ public static class FortnitePorting
             else
                 Provider.MappingsContainer =
                     new FileUsmapTypeMappingsProvider(usmap);
-            Directory.CreateDirectory(_exportDirectory.FullName);
-            Directory.CreateDirectory(_saveDirectory.FullName);
 
             var sw = new Stopwatch();
             sw.Start();
@@ -96,7 +102,7 @@ public static class FortnitePorting
         }
         catch (Exception e)
         {
-            Log.Fatal(e.StackTrace);
+            Log.Fatal(e.Message + e.StackTrace);
             Log.Fatal("An error occurred, please report this issue");
             Exit(1);
         }
