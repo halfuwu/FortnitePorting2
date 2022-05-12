@@ -31,6 +31,7 @@ public static class FortnitePorting
         {"-glider", Glider.Export},
         {"-pickaxe", Pickaxe.Export},
         {"-emote", Emote.Export},
+        {"-weapon", Weapon.Export},
         {"-mesh", Mesh.Export},
     };
 

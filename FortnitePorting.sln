@@ -6,6 +6,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CUE4Parse", "CUE4Parse\CUE4
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CUE4Parse-Conversion", "CUE4Parse\CUE4Parse-Conversion\CUE4Parse-Conversion.csproj", "{72240BAF-3B8D-4B76-9083-13912A038A41}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CUE4Parse-Fortnite", "CUE4Parse\CUE4Parse-Fortnite\CUE4Parse-Fortnite.csproj", "{BAAF7BC7-7D56-4BE0-BFA2-666E0F3306EB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -24,5 +26,9 @@ Global
 		{72240BAF-3B8D-4B76-9083-13912A038A41}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{72240BAF-3B8D-4B76-9083-13912A038A41}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{72240BAF-3B8D-4B76-9083-13912A038A41}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BAAF7BC7-7D56-4BE0-BFA2-666E0F3306EB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BAAF7BC7-7D56-4BE0-BFA2-666E0F3306EB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BAAF7BC7-7D56-4BE0-BFA2-666E0F3306EB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BAAF7BC7-7D56-4BE0-BFA2-666E0F3306EB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

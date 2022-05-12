@@ -40,10 +40,10 @@ public static class Character
             if (!key.StartsWith("fortnitegame/plugins/gamefeatures/savetheworld/content/heroes/")) continue;
             if (!key.SubstringAfterLast("/").StartsWith("cid_")) continue;
             
-            var Asset = Provider.LoadObject(key.Replace(".uasset", ""));
-            if (Asset.Get<FText>("DisplayName").Text.ToLower().Equals(input.ToLower()))
+            var asset = Provider.LoadObject(key.Replace(".uasset", ""));
+            if (asset.Get<FText>("DisplayName").Text.ToLower().Equals(input.ToLower()))
             {
-                character = Asset;
+                character = asset;
                 break;
             }
         }
