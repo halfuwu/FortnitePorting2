@@ -146,6 +146,8 @@ public static class AssetHelpers
     private static FStructFallback PromptStyle(UObject style, string optionsName)
     {
         var options = style.Get<FStructFallback[]>(optionsName);
+        if (options.Length == 1)
+            return options[0];
         var channelName = style.GetOrDefault("VariantChannelName", new FText("INVALID"));
         
         Log.Information("{0} Variants:", channelName);

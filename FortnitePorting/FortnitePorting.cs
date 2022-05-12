@@ -2,8 +2,11 @@
 using CUE4Parse.Encryption.Aes;
 using CUE4Parse.FileProvider;
 using CUE4Parse.MappingsProvider;
+using CUE4Parse.UE4.Objects.Core.i18N;
 using CUE4Parse.UE4.Objects.Core.Misc;
+using CUE4Parse.UE4.Objects.UObject;
 using CUE4Parse.UE4.Versions;
+using CUE4Parse.Utils;
 using FortnitePorting.Exports;
 using Newtonsoft.Json;
 using Serilog;
@@ -21,7 +24,8 @@ public static class FortnitePorting
     
     private static readonly Dictionary<string, Func<string, ExportFile?>> _exports = new()
     {
-        {"-character", Character.Export},
+        {"-characterbr", Character.ExportBR},
+        {"-characterstw", Character.ExportSTW},
         {"-backpack", Backpack.Export},
         {"-pet", Pet.Export},
         {"-glider", Glider.Export},
@@ -59,10 +63,14 @@ public static class FortnitePorting
             var GamePath = _config.PaksFolder;
             var Key = _config.MainKey;
 
-            Provider = new DefaultFileProvider(new DirectoryInfo(GamePath), new List<DirectoryInfo>
-                {
-                    new(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) + "\\FortniteGame\\Saved\\PersistentDownloadDir\\InstalledBundles"),
-                }, 
+            var ExtraDirs = new List<DirectoryInfo>
+            {
+                new(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) +
+                    "\\FortniteGame\\Saved\\PersistentDownloadDir\\InstalledBundles"),
+            };
+
+            ExtraDirs = ExtraDirs.Where(x => Directory.Exists(x.FullName)).ToList();
+            Provider = new DefaultFileProvider(new DirectoryInfo(GamePath), ExtraDirs,
                 SearchOption.AllDirectories, true, new VersionContainer(EGame.GAME_UE5_LATEST));
             Provider.Initialize();
             Provider.SubmitKey(new FGuid(), new FAesKey(Key));
@@ -74,9 +82,7 @@ public static class FortnitePorting
             var usmap = GetNewestUsmap(_dataDirectory.FullName);
             if (usmap == null) Provider.LoadMappings();
             else
-                Provider.MappingsContainer =
-                    new FileUsmapTypeMappingsProvider(usmap);
-
+                Provider.MappingsContainer = new FileUsmapTypeMappingsProvider(usmap);
             var sw = new Stopwatch();
             sw.Start();
             var type = args[0];
