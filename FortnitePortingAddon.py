@@ -1,4 +1,5 @@
 import bpy
+import mathutils
 from bpy.props import StringProperty, BoolProperty, PointerProperty, EnumProperty, FloatProperty, FloatVectorProperty
 from bpy.types import Operator, Panel, PropertyGroup, Scene
 
@@ -8,7 +9,7 @@ import re
 
 from io_import_scene_unreal_psa_psk_280 import pskimport, psaimport
 from math import radians
-from mathutils import Matrix
+from mathutils import Matrix, Vector
 
 import json
 
@@ -37,7 +38,13 @@ class FPEnums:
         ("Glider", "Glider", "Glider"),
         ("Pickaxe", "Pickaxe", "Pickaxe"),
         ("Emote", "Emote", "Emote"),
+        ("Weapon", "Weapon", "Weapon"),
         ("Mesh", "Mesh", "Mesh")
+    ]
+
+    CharacterType = [
+        ("Battle Royale", "Battle Royale", "Battle Royale"),
+        ("Save The World", "Save The World", "Save The World"),
     ]
 
 
@@ -64,17 +71,22 @@ class FPUtils:
         return http.request("GET", url)
 
     @staticmethod
-    def AppendShaders(*names):
-        for name in names:
-            if not bpy.data.node_groups.get(name):
-                with bpy.data.libraries.load(
-                        os.path.join(os.path.dirname(Settings.ConfigFile), "FPShader.blend")) as (
-                        data_from, data_to):
+    def CheckAppendData():
+        with bpy.data.libraries.load(
+                os.path.join(os.path.dirname(Settings.ConfigFile), "FPData.blend")) as (
+                data_from, data_to):
+            for name in ['FP Basic', 'FP Default', 'FP Cropped Emissive']:
+                if not bpy.data.node_groups.get(name):
                     data_to.node_groups = data_from.node_groups
-                break
+            for part in ['RIG_FaceBone', 'RIG_FingerRotL', 'RIG_FingerRotR', 'RIG_FootL', 'RIG_FootR', 'RIG_Forearm',
+                         'RIG_Hand', 'RIG_Hips', 'RIG_Index', 'RIG_JawBone', 'RIG_MetacarpalTweak', 'RIG_Shoulder',
+                         'RIG_Thumb', 'RIG_Tweak', 'RIG_EyeTrackInd', 'RIG_EyeTrackMid', 'RIG_Root', 'RIG_Toe',
+                         'RIG_Torso']:
+                if not bpy.data.objects.get(part):
+                    data_to.objects = data_from.objects
 
     @staticmethod
-    def ImportAnim(path: str, skeleton: bpy.types.Armature ) -> bool:
+    def ImportAnim(path: str, skeleton: bpy.types.Armature) -> bool:
         path = path[1:] if path.startswith("/") else path
         AnimPath = os.path.join(os.path.dirname(Settings.ConfigFile), "Saves", path.split(".")[0] + "_SEQ0") + ".psa"
         if not os.path.exists(AnimPath):
@@ -102,7 +114,7 @@ class FPUtils:
         return bpy.data.images.load(TexturePath)
 
     @staticmethod
-    def MergeSkeletons(skeletons):
+    def MergeSkeletons(skeletons) -> bpy.types.Armature:
         bpy.ops.object.select_all(action='DESELECT')
 
         # crappy code incoming D:
@@ -179,6 +191,8 @@ class FPUtils:
             if Socket == 'tail':
                 FPUtils.ConstraintObject(Skeleton, MasterSkeleton, "pelvis")
 
+        return MasterSkeleton
+
     @staticmethod
     def ConstraintObject(child: bpy.types.Object, parent: bpy.types.Object, bone: str,
                          rot=[radians(0), radians(90), radians(0)]):
@@ -203,14 +217,28 @@ class FPUtils:
         bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[
             name]
 
+    @staticmethod
+    def FindOccurance(expr, target, default=None):
+        if not target:
+            return None
+        return next(filter(expr, target), None)
+
     BasicMap = {
         # Name, Shader Idx, Graph Pos
         "TexMap": [
             ("Diffuse", 0, [-300, -75]),
             ("Diffuse Texture with Alpha Mask", 0, [-300, -75]),
+            ("Diffuse Map", 0, [-300, -75]),
+
             ("M", 1, [-300, -125]),
+            ("Texture Masks", 1, [-300, -125]),
+
             ("SpecularMasks", 4, [-300, -175]),
+            ("Specular Map", 4, [-300, -175]),
+
             ("Normals", 5, [-300, -225]),
+            ("Normal Map", 5, [-300, -225]),
+
             ("Emissive", 6, [-300, -275]),
             ("Visor_Emissive", 6, [-300, -275])
         ],
@@ -231,9 +259,17 @@ class FPUtils:
         "TexMap": [
             ("Diffuse", 0, [-300, -75]),
             ("Diffuse Texture with Alpha Mask", 0, [-300, -75]),
+            ("Diffuse Map", 0, [-300, -75]),
+
             ("M", 1, [-300, -125]),
+            ("Texture Masks", 1, [-300, -125]),
+
             ("SpecularMasks", 8, [-300, -175]),
+            ("Specular Map", 8, [-300, -175]),
+
             ("Normals", 11, [-300, -225]),
+            ("Normal Map", 11, [-300, -225]),
+
             ("Emissive", 13, [-300, -275]),
             ("Visor_Emissive", 13, [-300, -275])
         ],
@@ -262,8 +298,32 @@ class FPUtils:
         ]
     }
 
+    VertexColorMap = {
+        "Hide Element 01": 1,
+        "Hide Element 1_5": 2,
+        "Hide Element 02": 3,
+        "Hide Element 2_5": 4,
+        "Hide Element 03": 5,
+        "Hide Element 3_5": 6,
+        "Hide Element 04": 7,
+        "Hide Element 4_5": 8,
+        "Hide Element 05": 9,
+        "Hide Element 5_5": 10,
+        "Hide Element 06": 11,
+        "Hide Element 6_5": 12,
+        "Hide Element 07": 13,
+        "Hide Element 7_5": 14,
+        "Hide Element 08": 15,
+        "Hide Element 8_5": 16,
+        "Hide Element 09": 17,
+        "Hide Element 9_5": 18,
+        "Hide Element 10": 19,
+        "Hide Element 10_5": 20,
+    }
+
     @staticmethod
     def ImportMaterial(Target, Data, MatName, Mesh=None):
+        Target: bpy.types.Material
         Target.use_nodes = True
         Target.name = MatName
 
@@ -298,11 +358,15 @@ class FPUtils:
             Shader.inputs[5].default_value = Settings.SSStrength
             if Settings.CustomSS:
                 Shader.inputs[4].default_value = (Settings.SSColor[0], Settings.SSColor[1], Settings.SSColor[2], 1)
+            else:
+                if SubsurfaceInfo := Data.get("SubsurfaceInfo"):
+                    Color = SubsurfaceInfo.get("color")
+                    Shader.inputs[4].default_value = (Color["R"], Color["G"], Color["B"], 1)
         elif Settings.ShaderType == 'Advanced':
             TargetShaderMap = FPUtils.AdvancedMap
 
         def TextureParam(Param):
-            NodeInfo = next(filter(lambda x: x[0] == Param.get("Info"), TargetShaderMap["TexMap"]), None)
+            NodeInfo = FPUtils.FindOccurance(lambda x: x[0] == Param.get("Info"), TargetShaderMap["TexMap"])
             if not NodeInfo:
                 return
 
@@ -319,14 +383,14 @@ class FPUtils:
             links.new(Node.outputs[0], Shader.inputs[NodeInfo[1]])
 
         def ScalarParam(Param):
-            NodeInfo = next(filter(lambda x: x[0] == Param.get("Info"), TargetShaderMap["NumMap"]), None)
+            NodeInfo = FPUtils.FindOccurance(lambda x: x[0] == Param.get("Info"), TargetShaderMap["NumMap"])
             if not NodeInfo:
                 return
 
             Shader.inputs[NodeInfo[1]].default_value = Param.get("Value")
 
         def VectorParam(Param):
-            NodeInfo = next(filter(lambda x: x[0] == Param.get("Info"), TargetShaderMap["VecMap"]), None)
+            NodeInfo = FPUtils.FindOccurance(lambda x: x[0] == Param.get("Info"), TargetShaderMap["VecMap"])
             if not NodeInfo:
                 return
 
@@ -336,7 +400,7 @@ class FPUtils:
                 Shader.inputs[NodeInfo[2]].default_value = Vector["A"]
 
         def SwitchParam(Param):
-            NodeInfo = next(filter(lambda x: x[0] == Param.get("Info"), TargetShaderMap["SwitchMap"]), None)
+            NodeInfo = FPUtils.FindOccurance(lambda x: x[0] == Param.get("Info"), TargetShaderMap["SwitchMap"])
             if not NodeInfo:
                 return
 
@@ -356,6 +420,26 @@ class FPUtils:
             for Param in SwitchParams:
                 continue
                 # SwitchParam(Param)
+
+        UseCroppedEmissive = FPUtils.FindOccurance(
+            lambda x: x.get("Info") == "CroppedEmissive", SwitchParams)
+        CroppedEmissivePositions = FPUtils.FindOccurance(
+            lambda x: x.get("Info") == "EmissiveUVs_RG_UpperLeftCorner_BA_LowerRightCorner", VectorParams)
+
+        if UseCroppedEmissive and CroppedEmissivePositions:
+            EmissiveData = FPUtils.FindOccurance(lambda x: x[0] == "Emissive", TargetShaderMap["TexMap"])
+            EmissiveNode = Shader.inputs[EmissiveData[1]].links[0].from_node
+            EmissiveNode.extension = 'CLIP'
+            Data = CroppedEmissivePositions.get("Value")
+
+            EmissiveShader = nodes.new("ShaderNodeGroup")
+            EmissiveShader.node_tree = bpy.data.node_groups.get("FP Cropped Emissive")
+            EmissiveShader.location = [EmissiveData[2][0]-200, EmissiveData[2][1]+25]
+            EmissiveShader.inputs[0].default_value = Data.get('R')
+            EmissiveShader.inputs[1].default_value = Data.get('G')
+            EmissiveShader.inputs[2].default_value = Data.get('B')
+            EmissiveShader.inputs[3].default_value = Data.get('A')
+            links.new(EmissiveShader.outputs[0], EmissiveNode.inputs[0])
 
     @staticmethod
     def ReadConfig(self, context):
@@ -381,6 +465,412 @@ class FPUtils:
             Config["MainKey"] = Settings.MainKey
             Config["bCloseOnFinish"] = Settings.CloseOnFinish
             json.dump(Config, open(Settings.ConfigFile, "w"), indent=4)
+
+    @staticmethod
+    def CheckIKDeps():
+        if Settings.IKRig:
+            FPUtils.ReorientBefore = Settings.ReorientedBones
+            Settings.ReorientedBones = True
+            FPUtils.MergeBefore = Settings.MergeSkeletons
+            Settings.MergeSkeletons = True
+        else:
+            Settings.ReorientedBones = FPUtils.ReorientBefore
+            Settings.MergeSkeletons = FPUtils.MergeBefore
+
+    # to revert when unticking ik option
+    MergeBefore = False
+    ReorientBefore = False
+
+    @staticmethod
+    def TastyRig(MasterSkeleton: bpy.types.Armature):
+        IKGroup = MasterSkeleton.pose.bone_groups.new(name='IKGroup')
+        IKGroup.color_set = 'THEME01'
+        PoleGroup = MasterSkeleton.pose.bone_groups.new(name='PoleGroup')
+        PoleGroup.color_set = 'THEME06'
+        TwistGroup = MasterSkeleton.pose.bone_groups.new(name='TwistGroup')
+        TwistGroup.color_set = 'THEME09'
+        FaceGroup = MasterSkeleton.pose.bone_groups.new(name='FaceGroup')
+        FaceGroup.color_set = 'THEME01'
+        DynGroup = MasterSkeleton.pose.bone_groups.new(name='DynGroup')
+        DynGroup.color_set = 'THEME07'
+        ExtraGroup = MasterSkeleton.pose.bone_groups.new(name='ExtraGroup')
+        ExtraGroup.color_set = 'THEME10'
+
+        bpy.ops.object.mode_set(mode='EDIT')
+        EditBones = MasterSkeleton.data.edit_bones
+        # Name, Head, Tail, Roll
+        NewBonesMap = [
+            ('hand_ik_r', EditBones.get('hand_r').head, EditBones.get('hand_r').tail,
+             EditBones.get('hand_r').roll),
+            ('hand_ik_l', EditBones.get('hand_l').head, EditBones.get('hand_l').tail,
+             EditBones.get('hand_l').roll),
+            ('foot_ik_r', EditBones.get('foot_r').head, EditBones.get('foot_r').tail,
+             EditBones.get('foot_r').roll),
+            ('foot_ik_l', EditBones.get('foot_l').head, EditBones.get('foot_l').tail,
+             EditBones.get('foot_l').roll),
+            ('pole_elbow_r', EditBones.get('lowerarm_r').head + Vector((0, 0.5, 0)),
+             EditBones.get('lowerarm_r').head + Vector((0, 0.5, -0.05)), 0),
+            ('pole_elbow_l', EditBones.get('lowerarm_l').head + Vector((0, 0.5, 0)),
+             EditBones.get('lowerarm_l').head + Vector((0, 0.5, -0.05)), 0),
+            ('pole_knee_r', EditBones.get('calf_r').head + Vector((0, -0.75, 0)),
+             EditBones.get('calf_r').head + Vector((0, -0.75, -0.05)), 0),
+            ('pole_knee_l', EditBones.get('calf_l').head + Vector((0, -0.75, 0)),
+             EditBones.get('calf_l').head + Vector((0, -0.75, -0.05)), 0),
+            ('index_control_l', EditBones.get('index_01_l').head, EditBones.get('index_01_l').tail,
+             EditBones.get('index_01_l').roll),
+            ('middle_control_l', EditBones.get('middle_01_l').head, EditBones.get('middle_01_l').tail,
+             EditBones.get('middle_01_l').roll),
+            ('ring_control_l', EditBones.get('ring_01_l').head, EditBones.get('ring_01_l').tail,
+             EditBones.get('ring_01_l').roll),
+            ('pinky_control_l', EditBones.get('pinky_01_l').head, EditBones.get('pinky_01_l').tail,
+             EditBones.get('pinky_01_l').roll),
+            ('index_control_r', EditBones.get('index_01_r').head, EditBones.get('index_01_r').tail,
+             EditBones.get('index_01_r').roll),
+            ('middle_control_r', EditBones.get('middle_01_r').head, EditBones.get('middle_01_r').tail,
+             EditBones.get('middle_01_r').roll),
+            ('ring_control_r', EditBones.get('ring_01_r').head, EditBones.get('ring_01_r').tail,
+             EditBones.get('ring_01_r').roll),
+            ('pinky_control_r', EditBones.get('pinky_01_r').head, EditBones.get('pinky_01_r').tail,
+             EditBones.get('pinky_01_r').roll),
+            ('eye_control_mid', EditBones.get('head').head + Vector((0, -0.675, 0)),
+             EditBones.get('head').head + Vector((0, -0.7, 0)), 0),
+
+        ]
+
+        for BoneInfo in NewBonesMap:
+            EditBone: bpy.types.EditBone = EditBones.new(BoneInfo[0])
+            EditBone.head = BoneInfo[1]
+            EditBone.tail = BoneInfo[2]
+            EditBone.roll = BoneInfo[3]
+            EditBone.parent = EditBones.get('root')
+            if BoneInfo[0] == 'eye_control_mid':
+                NewBonesMap.append(('eye_control_r', EditBones.get('eye_control_mid').head + Vector((0.0325, 0, 0)),
+                                    EditBones.get('eye_control_mid').tail + Vector((0.0325, 0, 0)), 0))
+                NewBonesMap.append(('eye_control_l', EditBones.get('eye_control_mid').head + Vector((-0.0325, 0, 0)),
+                                    EditBones.get('eye_control_mid').tail + Vector((-0.0325, 0, 0)), 0))
+
+        TailHeadMoves = [
+            ('upperarm_r', 'lowerarm_r'),
+            ('upperarm_l', 'lowerarm_l'),
+            ('lowerarm_r', 'hand_r'),
+            ('lowerarm_l', 'hand_l'),
+
+            ('thigh_r', 'calf_r'),
+            ('thigh_l', 'calf_l'),
+            ('calf_r', 'foot_ik_r'),
+            ('calf_l', 'foot_ik_l'),
+        ]
+
+        for Bone in TailHeadMoves:
+            if (EditBone := EditBones.get(Bone[0])) and (TargetBone := EditBones.get(Bone[1])):
+                EditBone.tail = TargetBone.head
+
+        HeadHeadMoves = [
+            ('L_eye_lid_upper_mid', 'L_eye'),
+            ('L_eye_lid_lower_mid', 'L_eye'),
+            ('R_eye_lid_upper_mid', 'R_eye'),
+            ('R_eye_lid_lower_mid', 'R_eye'),
+        ]
+
+        for Bone in HeadHeadMoves:
+            if (EditBone := EditBones.get(Bone[0])) and (TargetBone := EditBones.get(Bone[1])):
+                EditBone.head = TargetBone.head
+
+        RemoveBones = ['attach', 'ik_hand_gun', 'ik_hand_r', 'ik_hand_l', 'weapon_r', 'weapon_l',
+                       'ik_hand_root',
+                       'ik_foot_root', 'ik_foot_r', 'ik_foot_l', 'dyn_simspace']
+        for Bone in RemoveBones:
+            if RemoveEditBone := EditBones.get(Bone):
+                EditBones.remove(RemoveEditBone)
+
+        if Jaw := EditBones.get('C_jaw'):
+            Jaw.roll = 0
+
+        MatrixTransformBones = ['index_control_l', 'middle_control_l', 'ring_control_l', 'pinky_control_l',
+                                'index_control_r', 'middle_control_r', 'ring_control_r', 'pinky_control_r']
+        for Bone in MatrixTransformBones:
+            if EditBone := EditBones.get(Bone):
+                EditBone.matrix @= Matrix.Translation(Vector((0.025, 0.0, 0.0)))
+                EditBone.parent = EditBones.get(Bone.replace("control", "metacarpal"))
+
+        EditBones.get('eye_control_r').parent = EditBones.get('eye_control_mid')
+        EditBones.get('eye_control_l').parent = EditBones.get('eye_control_mid')
+
+        bpy.ops.object.mode_set(mode='OBJECT')
+        PoseBones = MasterSkeleton.pose.bones
+        # Target, Object, Scale, Group (Optional), Rot (Optional)
+        SpecialMap = [
+            ('root', 'RIG_Root', 0.75),
+            ('pelvis', 'RIG_Torso', 3.0, None, (0, -90, 0)),
+            ('spine_01', 'RIG_Hips', 2.1),
+            ('spine_02', 'RIG_Hips', 1.8),
+            ('spine_03', 'RIG_Hips', 1.6),
+            ('spine_04', 'RIG_Hips', 1.8),
+            ('spine_05', 'RIG_Hips', 1.2),
+            ('neck_01', 'RIG_Hips', 1.0),
+            ('neck_02', 'RIG_Hips', 1.0),
+            ('head', 'RIG_Hips', 1.6),
+
+            ('clavicle_r', 'RIG_Shoulder', 1.0),
+            ('clavicle_l', 'RIG_Shoulder', 1.0),
+
+            ('upperarm_twist_01_r', 'RIG_Forearm', .13, TwistGroup),
+            ('upperarm_twist_02_r', 'RIG_Forearm', .1, TwistGroup),
+            ('lowerarm_twist_01_r', 'RIG_Forearm', .13, TwistGroup),
+            ('lowerarm_twist_02_r', 'RIG_Forearm', .13, TwistGroup),
+            ('upperarm_twist_01_l', 'RIG_Forearm', .13, TwistGroup),
+            ('upperarm_twist_02_l', 'RIG_Forearm', .1, TwistGroup),
+            ('lowerarm_twist_01_l', 'RIG_Forearm', .13, TwistGroup),
+            ('lowerarm_twist_02_l', 'RIG_Forearm', .13, TwistGroup),
+
+            ('thigh_twist_01_r', 'RIG_Tweak', .15, TwistGroup),
+            ('calf_twist_01_r', 'RIG_Tweak', .13, TwistGroup),
+            ('calf_twist_02_r', 'RIG_Tweak', .2, TwistGroup),
+            ('thigh_twist_01_l', 'RIG_Tweak', .15, TwistGroup),
+            ('calf_twist_01_l', 'RIG_Tweak', .13, TwistGroup),
+            ('calf_twist_02_l', 'RIG_Tweak', .2, TwistGroup),
+
+            ('hand_ik_r', 'RIG_Hand', 2.6, IKGroup),
+            ('hand_ik_l', 'RIG_Hand', 2.6, IKGroup),
+
+            ('foot_ik_r', 'RIG_FootR', 1.0, IKGroup),
+            ('foot_ik_l', 'RIG_FootL', 1.0, IKGroup, (0, -90, 0)),
+
+            ('thumb_01_l', 'RIG_Thumb', 1.0),
+            ('thumb_02_l', 'RIG_Hips', 0.7),
+            ('thumb_03_l', 'RIG_Thumb', 1.0),
+            ('index_metacarpal_l', 'RIG_MetacarpalTweak', 0.3),
+            ('index_01_l', 'RIG_Index', 1.0),
+            ('index_02_l', 'RIG_Index', 1.3),
+            ('index_03_l', 'RIG_Index', 0.7),
+            ('middle_metacarpal_l', 'RIG_MetacarpalTweak', 0.3),
+            ('middle_01_l', 'RIG_Index', 1.0),
+            ('middle_02_l', 'RIG_Index', 1.3),
+            ('middle_03_l', 'RIG_Index', 0.7),
+            ('ring_metacarpal_l', 'RIG_MetacarpalTweak', 0.3),
+            ('ring_01_l', 'RIG_Index', 1.0),
+            ('ring_02_l', 'RIG_Index', 1.3),
+            ('ring_03_l', 'RIG_Index', 0.7),
+            ('pinky_metacarpal_l', 'RIG_MetacarpalTweak', 0.3),
+            ('pinky_01_l', 'RIG_Index', 1.0),
+            ('pinky_02_l', 'RIG_Index', 1.3),
+            ('pinky_03_l', 'RIG_Index', 0.7),
+
+            ('thumb_01_r', 'RIG_Thumb', 1.0),
+            ('thumb_02_r', 'RIG_Hips', 0.7),
+            ('thumb_03_r', 'RIG_Thumb', 1.0),
+            ('index_metacarpal_r', 'RIG_MetacarpalTweak', 0.3),
+            ('index_01_r', 'RIG_Index', 1.0),
+            ('index_02_r', 'RIG_Index', 1.3),
+            ('index_03_r', 'RIG_Index', 0.7),
+            ('middle_metacarpal_r', 'RIG_MetacarpalTweak', 0.3),
+            ('middle_01_r', 'RIG_Index', 1.0),
+            ('middle_02_r', 'RIG_Index', 1.3),
+            ('middle_03_r', 'RIG_Index', 0.7),
+            ('ring_metacarpal_r', 'RIG_MetacarpalTweak', 0.3),
+            ('ring_01_r', 'RIG_Index', 1.0),
+            ('ring_02_r', 'RIG_Index', 1.3),
+            ('ring_03_r', 'RIG_Index', 0.7),
+            ('pinky_metacarpal_r', 'RIG_MetacarpalTweak', 0.3),
+            ('pinky_01_r', 'RIG_Index', 1.0),
+            ('pinky_02_r', 'RIG_Index', 1.3),
+            ('pinky_03_r', 'RIG_Index', 0.7),
+
+            ('ball_r', 'RIG_Toe', 2.1),
+            ('ball_l', 'RIG_Toe', 2.1),
+
+            ('pole_elbow_r', 'RIG_Tweak', 2.0, PoleGroup),
+            ('pole_elbow_l', 'RIG_Tweak', 2.0, PoleGroup),
+            ('pole_knee_r', 'RIG_Tweak', 2.0, PoleGroup),
+            ('pole_knee_l', 'RIG_Tweak', 2.0, PoleGroup),
+
+            ('index_control_l', 'RIG_FingerRotR', 1.0, ExtraGroup),
+            ('middle_control_l', 'RIG_FingerRotR', 1.0, ExtraGroup),
+            ('ring_control_l', 'RIG_FingerRotR', 1.0, ExtraGroup),
+            ('pinky_control_l', 'RIG_FingerRotR', 1.0, ExtraGroup),
+            ('index_control_r', 'RIG_FingerRotR', 1.0, ExtraGroup),
+            ('middle_control_r', 'RIG_FingerRotR', 1.0, ExtraGroup),
+            ('ring_control_r', 'RIG_FingerRotR', 1.0, ExtraGroup),
+            ('pinky_control_r', 'RIG_FingerRotR', 1.0, ExtraGroup),
+
+            ('eye_control_mid', 'RIG_EyeTrackMid', 0.75, ExtraGroup),
+            ('eye_control_r', 'RIG_EyeTrackInd', 0.75, ExtraGroup),
+            ('eye_control_l', 'RIG_EyeTrackInd', 0.75, ExtraGroup),
+
+        ]
+
+        for Item in SpecialMap:
+            if PoseBone := PoseBones.get(Item[0]):
+                PoseBone.custom_shape = bpy.data.objects.get(Item[1])
+                PoseBone.custom_shape_scale_xyz = Item[2], Item[2], Item[2]
+                if len(Item) > 3 and Item[3]:
+                    PoseBone.bone_group = Item[3]
+                else:
+                    PoseBone.bone_group = ExtraGroup
+                if len(Item) > 4 and Item[4]:
+                    PoseBone.custom_shape_rotation_euler = radians(Item[4][0]), radians(Item[4][1]), radians(
+                        Item[4][2])
+
+                if 'twist' in PoseBone.name:
+                    PoseBone.use_custom_shape_bone_size = False
+                if 'eye_control_' in PoseBone.name:
+                    PoseBone.use_custom_shape_bone_size = False
+                if PoseBone.name == 'root':
+                    PoseBone.use_custom_shape_bone_size = False
+
+        for Bone in PoseBones:
+            if not Bone.parent:
+                continue
+
+            if 'dyn_' in Bone.name:
+                Bone.bone_group = DynGroup
+
+            if 'deform_' in Bone.name and Bone.bone_group_index != 0:
+                Bone.custom_shape = bpy.data.objects.get('RIG_Tweak')
+                Bone.custom_shape_scale_xyz = 0.5, 0.5, 0.5
+                Bone.bone_group = DynGroup
+
+            if Bone.name == 'faceAttach':
+                Bone.bone_group = FaceGroup
+                continue
+
+            if Bone.parent.name != 'faceAttach' and Bone.parent.name != 'C_jaw':
+                continue
+
+            if 'eye_lid_' in Bone.name:
+                Bone.bone_group = FaceGroup
+                continue
+
+            if Bone.name == 'C_jaw':
+                Bone.bone_group = FaceGroup
+                Bone.custom_shape = bpy.data.objects.get('RIG_JawBone')
+                Bone.custom_shape_scale_xyz = 1.5, 1.5, 1.5
+            elif Bone.name in ['teeth_upper', 'teeth_lower', 'tongue']:
+                Bone.bone_group = FaceGroup
+            elif Bone.name in ['R_eye', 'L_eye']:
+                Bone.bone_group = MasterSkeleton.pose.bone_groups[0]
+            else:
+                Bone.bone_group = FaceGroup
+                Bone.custom_shape = bpy.data.objects.get('RIG_FaceBone')
+                if "cheek" in Bone.name:
+                    Bone.custom_shape_scale_xyz = 2.0, 2.0, 2.0
+
+        RotCopyBones = [
+            ('hand_r', 'hand_ik_r', 1.0),
+            ('hand_l', 'hand_ik_l', 1.0),
+            ('foot_r', 'foot_ik_r', 1.0),
+            ('foot_l', 'foot_ik_l', 1.0),
+
+            ('L_eye_lid_upper_mid', 'L_eye', 0.25),
+            ('L_eye_lid_lower_mid', 'L_eye', 0.25),
+            ('R_eye_lid_upper_mid', 'R_eye', 0.25),
+            ('R_eye_lid_lower_mid', 'R_eye', 0.25),
+
+            ('index_01_l', 'index_control_l', 1.0),
+            ('index_02_l', 'index_control_l', 1.0),
+            ('index_03_l', 'index_control_l', 1.0),
+            ('middle_01_l', 'middle_control_l', 1.0),
+            ('middle_02_l', 'middle_control_l', 1.0),
+            ('middle_03_l', 'middle_control_l', 1.0),
+            ('ring_01_l', 'ring_control_l', 1.0),
+            ('ring_02_l', 'ring_control_l', 1.0),
+            ('ring_03_l', 'ring_control_l', 1.0),
+            ('pinky_01_l', 'pinky_control_l', 1.0),
+            ('pinky_02_l', 'pinky_control_l', 1.0),
+            ('pinky_03_l', 'pinky_control_l', 1.0),
+
+            ('index_01_r', 'index_control_r', 1.0),
+            ('index_02_r', 'index_control_r', 1.0),
+            ('index_03_r', 'index_control_r', 1.0),
+            ('middle_01_r', 'middle_control_r', 1.0),
+            ('middle_02_r', 'middle_control_r', 1.0),
+            ('middle_03_r', 'middle_control_r', 1.0),
+            ('ring_01_r', 'ring_control_r', 1.0),
+            ('ring_02_r', 'ring_control_r', 1.0),
+            ('ring_03_r', 'ring_control_r', 1.0),
+            ('pinky_01_r', 'pinky_control_r', 1.0),
+            ('pinky_02_r', 'pinky_control_r', 1.0),
+            ('pinky_03_r', 'pinky_control_r', 1.0),
+        ]
+
+        for Bone in RotCopyBones:
+            if PoseBone := PoseBones.get(Bone[0]):
+                con = PoseBone.constraints.new('COPY_ROTATION')
+                con.target = MasterSkeleton
+                con.subtarget = Bone[1]
+                con.influence = Bone[2]
+                if 'hand_ik' in Bone[1] or 'foot_ik' in Bone[1]:
+                    con.target_space = 'WORLD'
+                    con.owner_space = 'WORLD'
+                elif 'control' in Bone[1]:
+                    con.mix_mode = 'OFFSET'
+                    con.target_space = 'LOCAL_OWNER_ORIENT'
+                    con.owner_space = 'LOCAL'
+                else:
+                    con.target_space = 'LOCAL_OWNER_ORIENT'
+                    con.owner_space = 'LOCAL'
+
+        IKBones = [
+            ('lowerarm_r', 'hand_ik_r', 'pole_elbow_r'),
+            ('lowerarm_l', 'hand_ik_l', 'pole_elbow_l'),
+            ('calf_r', 'foot_ik_r', 'pole_knee_r'),
+            ('calf_l', 'foot_ik_l', 'pole_knee_l'),
+        ]
+
+        for Bone in IKBones:
+            con = PoseBones.get(Bone[0]).constraints.new('IK')
+            con.target = MasterSkeleton
+            con.subtarget = Bone[1]
+            con.pole_target = MasterSkeleton
+            con.pole_subtarget = Bone[2]
+            con.pole_angle = radians(180)
+            con.chain_count = 2
+
+        TrackBones = [
+            ('R_eye', 'eye_control_r', 0),
+            ('L_eye', 'eye_control_l', 0),
+            ('eye_control_mid', 'head', 0.285)
+        ]
+        for Bone in TrackBones:
+            if PoseBone := PoseBones.get(Bone[0]):
+                con = PoseBone.constraints.new('TRACK_TO')
+                con.target = MasterSkeleton
+                con.subtarget = Bone[1]
+                con.head_tail = Bone[2]
+                con.track_axis = 'TRACK_Y'
+                con.up_axis = 'UP_Z'
+
+        Bones = MasterSkeleton.data.bones
+        for Bone in ['hand_r', 'hand_l', 'foot_r', 'foot_l', 'faceAttach']:
+            if Bone := Bones.get(Bone):
+                Bone.hide = True
+
+        Bones.get('spine_01').use_inherit_rotation = False
+        Bones.get('neck_01').use_inherit_rotation = False
+
+        BoneGroups = {
+            'IKGroup': 1,
+            'PoleGroup': 1,
+            'TwistGroup': 2,
+            'DynGroup': 3,
+            'FaceGroup': 4,
+            'ExtraGroup': 1
+        }
+        LayerOneBones = ['upperarm_r', 'lowerarm_r', 'upperarm_l', 'lowerarm_l', 'thigh_r', 'calf_r', 'thigh_l',
+                         'calf_l', 'clavicle_r', 'clavicle_l', 'ball_r', 'ball_l', 'pelvis', 'spine_01',
+                         'spine_02', 'spine_03', 'spine_04', 'spine_05', 'neck_01', 'neck_02', 'head', 'root']
+        for Bone in Bones:
+            if Bone.name in LayerOneBones:
+                Bone.layers[1] = True
+                continue
+            if Bone.name in ['R_eye', 'L_eye', 'eye_control_mid', 'eye_control_r', 'eye_control_l']:
+                Bone.layers[4] = True
+                continue
+            if Group := PoseBones.get(Bone.name).bone_group:
+                if Group.name in ['Unused bones', 'No children']:
+                    continue
+                Index = BoneGroups[Group.name]
+                Bone.layers[Index] = True
 
 
 class FPPanel(Panel):
@@ -438,8 +928,16 @@ class FPPanel(Panel):
 
         box = layout.box()
         box.row().label(text="Import", icon='IMPORT')
-        box.row().prop(Settings, "MergeSkeletons")
-        box.row().prop(Settings, "ReorientedBones")
+        TastyRow = box.row()
+        TastyRow.prop(Settings, "IKRig")
+        TastyRow.operator("fp.tasty", icon='URL')
+        MergeRow = box.row()
+        MergeRow.prop(Settings, "MergeSkeletons")
+        ReorientRow = box.row()
+        ReorientRow.prop(Settings, "ReorientedBones")
+        if Settings.IKRig:
+            MergeRow.enabled = False
+            ReorientRow.enabled = False
         box.row().prop(Settings, "ImportQuads")
         box.row().prop(Settings, "ImportMaterials")
         box.row().prop(Settings, "CreateCollections")
@@ -451,6 +949,8 @@ class FPPanel(Panel):
         box = layout.box()
         box.row().label(text="Export", icon='EXPORT')
         box.row().prop(Settings, "ExportType")
+        if Settings.ExportType == 'Character':
+            box.row().prop(Settings, "CharacterType", expand=True)
         box.row().prop(Settings, "ExportString")
         ExportButtonRow = box.row()
         ExportButtonRow.operator("fp.export", icon='IMPORT')
@@ -470,11 +970,13 @@ class FPSettings(PropertyGroup):
 
     # Export
     ExportType: EnumProperty(name="Export", items=FPEnums.ExportType, default='Character')
+    CharacterType: EnumProperty(name="Character Type", items=FPEnums.CharacterType, default='Battle Royale')
     ExportString: StringProperty(name="")
 
     # Import
     MergeSkeletons: BoolProperty(name="Merge Skeletons")
     ReorientedBones: BoolProperty(name="Reorient Bones")
+    IKRig: BoolProperty(name="Use Tasty™ Rig", update=lambda s, c: FPUtils.CheckIKDeps())
     ImportQuads: BoolProperty(name="Use Quad Topology", default=True)
     ImportMaterials: BoolProperty(name="Import Materials", default=True)
     CreateCollections: BoolProperty(name="Create Collections", default=True)
@@ -500,6 +1002,7 @@ class FPSettings(PropertyGroup):
 class FPImport(Operator):
     bl_idname = "fp.import"
     bl_label = "Import"
+    bl_context = 'scene'
 
     def execute(self, context):
         self.Import()
@@ -526,75 +1029,129 @@ class FPImport(Operator):
             AnimName = AnimPath.split(".")[1]
 
             FPUtils.ImportAnim(AnimPath, Active)
-        else:
-            FPUtils.AppendShaders("FP Basic", "FP Default")
-            if Settings.CreateCollections:
-                FPUtils.CreateCollection(Name)
+            return
 
-            ImportedSlots = {}
+        FPUtils.CheckAppendData()
+        if Settings.CreateCollections:
+            FPUtils.CreateCollection(Name)
 
-            def ImportPart(part):
-                SlotType = part.get("slotType")
-                SocketName = part.get("socketName")
-                MeshPath = part.get("meshPath")
+        ImportedSlots = {}
 
-                if SlotType and SlotType in ImportedSlots:
-                    return
+        def ImportPart(part):
+            SlotType = part.get("slotType")
+            SocketName = part.get("socketName")
+            MeshPath = part.get("meshPath")
 
-                if not FPUtils.ImportMesh(MeshPath):
-                    return
+            if SlotType and SlotType in ImportedSlots:
+                return
 
-                if Type == 'Mesh':
-                    ImportedMesh = bpy.context.active_object
-                else:
-                    Armature = bpy.context.active_object
-                    ImportedSlots[SlotType] = {
-                        "Skeleton": Armature,
-                        "Socket": SocketName
-                    }
-                    ImportedMesh = FPUtils.MeshFromSkeleton(Armature)
+            if not FPUtils.ImportMesh(MeshPath):
+                return
 
-                bpy.context.view_layer.objects.active = ImportedMesh
-                ImportedMesh.select_set(True)
-                ImportedMesh.data.use_auto_smooth = 0
-                bpy.ops.object.shade_smooth()
+            if Type == 'Mesh':
+                ImportedMesh = bpy.context.active_object
+            else:
+                Armature = bpy.context.active_object
+                ImportedSlots[SlotType] = {
+                    "Skeleton": Armature,
+                    "Socket": SocketName
+                }
+                ImportedMesh = FPUtils.MeshFromSkeleton(Armature)
 
-                if Settings.ImportQuads:
-                    bpy.ops.object.editmode_toggle()
-                    bpy.ops.mesh.tris_convert_to_quads(uvs=True)
+            bpy.context.view_layer.objects.active = ImportedMesh
+            ImportedMesh.select_set(True)
+            ImportedMesh.data.use_auto_smooth = 0
+            bpy.ops.object.shade_smooth()
 
-                    if SlotType == 'Head':
-                        bpy.ops.mesh.remove_doubles()
-                    bpy.ops.object.editmode_toggle()
+            if Settings.ImportQuads:
+                bpy.ops.object.editmode_toggle()
+                bpy.ops.mesh.tris_convert_to_quads(uvs=True)
 
-                if Settings.ImportMaterials:
-                    for Material in part.get("materials"):
-                        MaterialIdx = Material.get("matIdx")
-                        if MaterialIdx >= len(ImportedMesh.material_slots):
+                if SlotType == 'Head':
+                    bpy.ops.mesh.remove_doubles()
+                bpy.ops.object.editmode_toggle()
+
+            if Settings.ImportMaterials:
+                for Material in part.get("materials"):
+                    MaterialIdx = Material.get("matIdx")
+                    if MaterialIdx >= len(ImportedMesh.material_slots):
+                        continue
+                    FPUtils.ImportMaterial(ImportedMesh.material_slots.values()[Material.get("matIdx")].material,
+                                           Material.get("matParameters"), Material.get("matPath").split(".")[1],
+                                           ImportedMesh)
+
+        # disgusting nested code i apologize
+        if VariantParams := Processed.get("variantParameters"):
+            for Part in Processed.get("baseStyle"):
+                for Material in Part.get("materials"):
+                    for ParamSet in VariantParams:
+                        if ParamSet.get("materialToAlter") != Material.get("matPath"):
                             continue
-                        FPUtils.ImportMaterial(ImportedMesh.material_slots.values()[Material.get("matIdx")].material,
-                                               Material.get("matParameters"), Material.get("matPath").split(".")[1],
-                                               ImportedMesh)
+                        Params = Material.get("matParameters")
+                        for Texture in ParamSet.get("TextureParameters"):
+                            Info = next(
+                                filter(lambda x: x.get("Info") == Texture.get("Info"), Params.get("TextureParameters")),
+                                None)
+                            if Info:
+                                Info["Value"] = Texture.get("Value")
+                                continue
+                            Params.get("TextureParameters").append({
+                                "Info": Texture.get("Info"),
+                                "Value": Texture.get("Value")
+                            })
+                        for Float in ParamSet.get("ScalarParameters"):
+                            Info = next(
+                                filter(lambda x: x.get("Info") == Float.get("Info"), Params.get("ScalarParameters")),
+                                None)
+                            if Info:
+                                Info["Value"] = Float.get("Value")
+                                continue
+                            Params.get("ScalarParameters").append({
+                                "Info": Float.get("Info"),
+                                "Value": Float.get("Value")
+                            })
 
-            if StyleParts := Processed.get("variantParts"):
-                for StylePart in StyleParts:
-                    ImportPart(StylePart)
+                        for Color in ParamSet.get("VectorParameters"):
+                            Info = next(
+                                filter(lambda x: x.get("Info") == Color.get("Info"), Params.get("VectorParameters")),
+                                None)
+                            if Info:
+                                Info["Value"] = Color.get("Value")
+                                continue
+                            Params.get("VectorParameters").append({
+                                "Info": Color.get("Info"),
+                                "Value": Color.get("Value")
+                            })
 
-            if BaseStyle := Processed.get("baseStyle"):
-                for BasePart in BaseStyle:
-                    ImportPart(BasePart)
+        if StyleParts := Processed.get("variantParts"):
+            for StylePart in StyleParts:
+                ImportPart(StylePart)
 
-            if StyleMaterials := Processed.get("variantMaterials"):
-                for StyleMaterial in StyleMaterials:
-                    MaterialToSwap = StyleMaterial.get("materialToSwap").split(".")[1]
-                    OverrideMaterialName = StyleMaterial.get("overrideMaterial").split(".")[1]
-                    FPUtils.ImportMaterial(bpy.data.materials[MaterialToSwap], StyleMaterial.get("matParameters"),
-                                           OverrideMaterialName)
+        if BaseStyle := Processed.get("baseStyle"):
+            for BasePart in BaseStyle:
+                ImportPart(BasePart)
 
-            if Settings.MergeSkeletons and len(ImportedSlots) > 1:
-                FPUtils.MergeSkeletons(ImportedSlots)
+        if StyleMaterials := Processed.get("variantMaterials"):
+            for StyleMaterial in StyleMaterials:
+                MaterialToSwap = StyleMaterial.get("materialToSwap").split(".")[1]
+                OverrideMaterialName = StyleMaterial.get("overrideMaterial").split(".")[1]
+                if not bpy.data.materials.get("MaterialToSwap"):
+                    continue
+                bpy.data.materials[MaterialToSwap].name = OverrideMaterialName
+                FPUtils.ImportMaterial(bpy.data.materials[MaterialToSwap], StyleMaterial.get("matParameters"),
+                                       OverrideMaterialName)
 
-            bpy.ops.object.select_all(action='DESELECT')
+        if Type != 'Character':
+            return
+
+        MasterSkeleton: bpy.types.Object
+        if Settings.MergeSkeletons:
+            MasterSkeleton = FPUtils.MergeSkeletons(ImportedSlots)
+
+        if Settings.IKRig and Type == 'Character':
+            FPUtils.TastyRig(MasterSkeleton)
+
+        bpy.ops.object.select_all(action='DESELECT')
 
 
 class FPExport(Operator):
@@ -613,7 +1170,11 @@ class FPExport(Operator):
     @staticmethod
     def Export():
         os.chdir(os.path.dirname(Settings.ConfigFile))
-        os.system(f'START FortnitePorting.exe -{Settings.ExportType.lower()} "{Settings.ExportString}"')
+        ExportType = Settings.ExportType.lower()
+        if ExportType == 'character':
+            ExportType += "br" if Settings.CharacterType == 'Battle Royale' else "stw"
+
+        os.system(f'start FortnitePorting -{ExportType} "{Settings.ExportString}"')
 
 
 class FPFill(Operator):
@@ -703,7 +1264,16 @@ class FPUpdate(Operator):
         return {'FINISHED'}
 
 
-Operators = [FPPanel, FPSettings, FPImport, FPExport, FPFill, FPCheckUpdate, FPUpdate]
+class FPTasty(Operator):
+    bl_idname = "fp.tasty"
+    bl_label = "Credit to Ta5tyy2"
+
+    def execute(self, context):
+        os.system("start https://twitter.com/Ta5tyy2")
+        return {'FINISHED'}
+
+
+Operators = [FPPanel, FPSettings, FPImport, FPExport, FPFill, FPCheckUpdate, FPUpdate, FPTasty]
 
 
 def register():

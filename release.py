@@ -19,7 +19,7 @@ with zipfile.ZipFile('Release/FortnitePorting.zip', 'w', zipfile.ZIP_DEFLATED) a
     for file in glob.glob(publishPath + "**"):
         if not file.endswith('.pdb'):
             mainZip.write(file, os.path.basename(file))
-    mainZip.write('FPShader.blend')
+    mainZip.write('FPData.blend')
     mainZip.write('config.json')
     mainZip.write('FortnitePortingAddon.py')
 
