@@ -1137,7 +1137,6 @@ class FPImport(Operator):
                 OverrideMaterialName = StyleMaterial.get("overrideMaterial").split(".")[1]
                 if not bpy.data.materials.get("MaterialToSwap"):
                     continue
-                bpy.data.materials[MaterialToSwap].name = OverrideMaterialName
                 FPUtils.ImportMaterial(bpy.data.materials[MaterialToSwap], StyleMaterial.get("matParameters"),
                                        OverrideMaterialName)
 
