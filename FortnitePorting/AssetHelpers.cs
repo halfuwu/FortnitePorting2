@@ -139,7 +139,61 @@ public static class AssetHelpers
                 }
             }
             
-            // TODO Variant Params
+            if (selectedStyle.TryGetValue(out FStructFallback[] variantParams, "VariantMaterialParams") && variantParams.Length > 0)
+            {
+                export.variantParameters = new List<ExportVariantParameters>();
+                foreach (var paramData in variantParams)
+                {
+                    var paramSet = new ExportVariantParameters();
+                    paramSet.materialToAlter = paramData.Get<FSoftObjectPath>("MaterialToAlter").AssetPathName.Text;
+
+                    if (paramData.TryGetValue<FStructFallback[]>(out var textures, "TextureParams"))
+                    {
+                        paramSet.TextureParameters = new List<TextureParameter>();
+                        foreach (var param in textures)
+                        {
+                            if (!param.TryGetValue<UTexture2D>(out var texture, "Value")) continue;
+                            var Parameter = new TextureParameter
+                            {
+                                Info = param.Get<FName>("ParamName").ToString(),
+                                Value = texture.GetPathName()
+                            };
+                            ExportObject(texture);
+                            paramSet.TextureParameters.Add(Parameter);
+                        }
+                    }
+                    
+                    if (paramData.TryGetValue<FStructFallback[]>(out var floats, "FloatParams"))
+                    {
+                        paramSet.ScalarParameters = new List<ScalarParameter>();
+                        foreach (var param in floats)
+                        {
+                            var Parameter = new ScalarParameter
+                            {
+                                Info = param.Get<FName>("ParamName").ToString(),
+                                Value = param.Get<float>("Value"),
+                            };
+                            paramSet.ScalarParameters.Add(Parameter);
+                        }
+                    }
+                    
+                    if (paramData.TryGetValue<FStructFallback[]>(out var colors, "ColorParams"))
+                    {
+                        paramSet.VectorParameters = new List<VectorParameter>();
+                        foreach (var param in colors)
+                        {
+                            var Parameter = new VectorParameter
+                            {
+                                Info = param.Get<FName>("ParamName").ToString(),
+                                Value = param.Get<FLinearColor>("Value"),
+                            };
+                            paramSet.VectorParameters.Add(Parameter);
+                        }
+                    }
+                    
+                    export.variantParameters.Add(paramSet);
+                }
+            }
         }
     }
 
@@ -247,6 +301,17 @@ public static class AssetHelpers
             }
         }
         
+        if (material.TryGetValue(out UObject SubsurfaceProfile, "SubsurfaceProfile"))
+        {
+            if (SubsurfaceProfile.TryGetValue(out FStructFallback Settings, "Settings"))
+            {
+                parameters.SubsurfaceInfo = new SubsurfaceInfo
+                {
+                    scatterRadius = Settings.GetOrDefault("ScatterRadius", 1.0f),
+                    color = Settings.Get<FLinearColor>("SubsurfaceColor"),
+                };
+            }
+        }
         return parameters;
     }
 

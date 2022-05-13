@@ -10,6 +10,7 @@ public class ExportFile
     public List<ExportPart> baseStyle;
     public List<ExportPart> variantParts;
     public List<ExportVariantMaterial> variantMaterials;
+    public List<ExportVariantParameters> variantParameters;
 }
 
 public class ExportPart
@@ -47,6 +48,21 @@ public class ExportMaterialParameters
     public List<VectorParameter> VectorParameters;
     public List<VectorParameter> ComponentMaskParameters;
     public List<SwitchParameter> SwitchParameters;
+    public SubsurfaceInfo SubsurfaceInfo;
+}
+
+public class ExportVariantParameters
+{
+    public string materialToAlter;
+    public List<TextureParameter> TextureParameters;
+    public List<ScalarParameter> ScalarParameters;
+    public List<VectorParameter> VectorParameters;
+}
+
+public class SubsurfaceInfo
+{
+    public float scatterRadius;
+    public FLinearColor color;
 }
 
 public class TextureParameter
