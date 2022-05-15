@@ -324,12 +324,12 @@ public static class AssetHelpers
                 if (!File.Exists(GetExportPath(file, "psk", "_LOD0")) && file is USkeletalMesh skeletalMesh)
                 {
                     var exporter = new MeshExporter(skeletalMesh, ELodFormat.FirstLod, false);
-                    exporter.TryWriteToDir(_saveDirectory, out _);
+                    exporter.TryWriteToDir(saveDirectory, out _);
                 }
                 else if (!File.Exists(GetExportPath(file, "pskx", "_LOD0")) && file is UStaticMesh staticMesh)
                 {
                     var exporter = new MeshExporter(staticMesh, ELodFormat.FirstLod, false);
-                    exporter.TryWriteToDir(_saveDirectory, out _);
+                    exporter.TryWriteToDir(saveDirectory, out _);
                 }
                 else if (!File.Exists(GetExportPath(file, "png")) && file is UTexture2D texture)
                 {
@@ -344,7 +344,7 @@ public static class AssetHelpers
                 else if (!File.Exists(GetExportPath(file, "psa", "_SEQ0")) && file is UAnimSequence anim)
                 {
                     var exporter = new AnimExporter(anim);
-                    exporter.TryWriteToDir(_saveDirectory, out _);
+                    exporter.TryWriteToDir(saveDirectory, out _);
                 }
             }
             catch (IOException) {}
@@ -356,7 +356,7 @@ public static class AssetHelpers
         path = path.SubstringBeforeLast('.');
         if (path.StartsWith("/")) path = path[1..];
 
-        var finalPath = Path.Combine(_saveDirectory.FullName, path) + $"{extra}.{ext.ToLower()}";
+        var finalPath = Path.Combine(saveDirectory.FullName, path) + $"{extra}.{ext.ToLower()}";
         return finalPath;
     }
     private enum EFortCustomPartType

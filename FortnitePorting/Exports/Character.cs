@@ -19,6 +19,8 @@ public static class Character
             var export = new ExportFile();
             export.type = "Character";
             export.name = character.Get<FText>("DisplayName").Text;
+            if (export.name.Equals("TBD"))
+                export.name = character.Name;
             
             var parts = character.Get<UObject[]>("BaseCharacterParts");
             export.baseStyle = new List<ExportPart>();

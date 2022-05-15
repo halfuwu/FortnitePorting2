@@ -17,9 +17,9 @@ public static class FortnitePorting
 {
     public static DefaultFileProvider Provider;
     private static Configuration _config;
-    public static readonly DirectoryInfo _saveDirectory = new(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Saves"));
+    public static readonly DirectoryInfo saveDirectory = new(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Saves"));
     private static readonly DirectoryInfo _exportDirectory = new(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Exports"));
-    private static readonly DirectoryInfo _dataDirectory = new(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".data"));
+    public static readonly DirectoryInfo dataDirectory = new(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".data"));
   
     
     private static readonly Dictionary<string, Func<string, ExportFile?>> _exports = new()
@@ -42,7 +42,7 @@ public static class FortnitePorting
             Console.Title = "Fortnite Porting";
             
             Directory.CreateDirectory(_exportDirectory.FullName);
-            Directory.CreateDirectory(_saveDirectory.FullName);
+            Directory.CreateDirectory(saveDirectory.FullName);
             
             var logPath = $"Logs/FortnitePorting-{DateTime.UtcNow:yyyy-MM-dd-hh-mm-ss}.log";
             Log.Logger = new LoggerConfiguration().WriteTo.Console().WriteTo.File(logPath).CreateLogger();
@@ -80,10 +80,18 @@ public static class FortnitePorting
                 Provider.SubmitKey(new FGuid(Entry.Guid), new FAesKey(Entry.Key));
             }
 
-            var usmap = GetNewestUsmap(_dataDirectory.FullName);
-            if (usmap == null) Provider.LoadMappings();
+            var usmap = GetNewestUsmap(dataDirectory.FullName);
+            if (usmap == null)
+            {
+                Log.Error("Failed to load mappings from file, attempting to load benbot mappings");
+                Provider.LoadMappings();
+            }
             else
-                Provider.MappingsContainer = new FileUsmapTypeMappingsProvider(usmap);
+            {
+                Log.Information("Loading mappings from {0}", usmap);
+                Provider.MappingsContainer = new FileUsmapTypeMappingsProvider(usmap); 
+            }
+            
             var sw = new Stopwatch();
             sw.Start();
             var type = args[0];
@@ -124,7 +132,7 @@ public static class FortnitePorting
             return null;
 
         var directory = new DirectoryInfo(mappingsFolder);
-        var selectedFilePath = string.Empty;
+        string? selectedFilePath = null;
         var modifiedTime = long.MinValue;
         foreach (var file in directory.GetFiles())
         {
