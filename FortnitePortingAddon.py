@@ -39,6 +39,7 @@ class FPEnums:
         ("Pickaxe", "Pickaxe", "Pickaxe"),
         ("Emote", "Emote", "Emote"),
         ("Weapon", "Weapon", "Weapon"),
+        #("Vehicle", "Vehicle", "Vehicle"),
         ("Mesh", "Mesh", "Mesh")
     ]
 
@@ -120,7 +121,7 @@ class FPUtils:
         # crappy code incoming D:
         Skeletons = skeletons
         Meshes = {}
-        ConstraintParts = []
+        ConstraintParts = {}
 
         # Join Skeletons
         for Part, Data in Skeletons.items():
@@ -128,12 +129,12 @@ class FPUtils:
             if Part == 'Body':
                 bpy.context.view_layer.objects.active = Skeleton  # body skeleton
             if (Part != 'Hat' and Part != 'MiscOrTail') or (Data[
-                                                                'Socket'] == 'Face' or Data[
-                                                                'Socket'] == "None"):  # skip parented stuff unless face socket or none
+                                                                'Socket'] == 'Face' or (Data[
+                                                                'Socket'] == "None" and Part != 'MiscOrTail')):  # skip parented stuff unless face socket or none
                 Skeleton.select_set(True)
                 Meshes[Part] = FPUtils.MeshFromSkeleton(Skeleton)
             else:
-                ConstraintParts.append(Data)
+                ConstraintParts[Part] = Data
 
         bpy.ops.object.join()
         MasterSkeleton = bpy.context.active_object
@@ -183,13 +184,18 @@ class FPUtils:
 
         bpy.ops.object.mode_set(mode='OBJECT')
 
-        for Part in ConstraintParts:
-            Skeleton = Part["Skeleton"]
-            Socket = Part["Socket"].lower()
+        for Part, Data in ConstraintParts.items():
+            Skeleton = Data["Skeleton"]
+            Socket = Data["Socket"].lower()
             if Socket == 'hat':
                 FPUtils.ConstraintObject(Skeleton, MasterSkeleton, "head")
             if Socket == 'tail':
                 FPUtils.ConstraintObject(Skeleton, MasterSkeleton, "pelvis")
+            if Socket == 'none' and Part == 'MiscOrTail':
+                con = Skeleton.pose.bones[0].constraints.new('CHILD_OF')
+                con.target = MasterSkeleton
+                con.subtarget = Skeleton.pose.bones[0].name
+
 
         return MasterSkeleton
 
@@ -234,9 +240,11 @@ class FPUtils:
             ("Texture Masks", 1, [-300, -125]),
 
             ("SpecularMasks", 4, [-300, -175]),
+            ("Specular Mask", 4, [-300, -175]),
             ("Specular Map", 4, [-300, -175]),
 
             ("Normals", 5, [-300, -225]),
+            ("Normal", 5, [-300, -225]),
             ("Normal Map", 5, [-300, -225]),
 
             ("Emissive", 6, [-300, -275]),
@@ -265,9 +273,11 @@ class FPUtils:
             ("Texture Masks", 1, [-300, -125]),
 
             ("SpecularMasks", 8, [-300, -175]),
+            ("Specular Mask", 8, [-300, -175]),
             ("Specular Map", 8, [-300, -175]),
 
             ("Normals", 11, [-300, -225]),
+            ("Normal", 11, [-300, -225]),
             ("Normal Map", 11, [-300, -225]),
 
             ("Emissive", 13, [-300, -275]),
@@ -320,6 +330,16 @@ class FPUtils:
         "Hide Element 10": 19,
         "Hide Element 10_5": 20,
     }
+
+    LinearList = [
+        "SpecularMasks",
+        "Specular Mask",
+        "Specular Map",
+        "Normals",
+        "Normal",
+        "Normal Map",
+        "M"
+    ]
 
     @staticmethod
     def ImportMaterial(Target, Data, MatName, Mesh=None):
@@ -378,7 +398,7 @@ class FPUtils:
             Node.image.alpha_mode = 'CHANNEL_PACKED'
             Node.location = NodeInfo[2]
             Node.hide = True
-            if NodeInfo[0] in ("Normals", "SpecularMasks", "M"):
+            if NodeInfo[0] in FPUtils.LinearList:
                 Node.image.colorspace_settings.name = "Linear"
             links.new(Node.outputs[0], Shader.inputs[NodeInfo[1]])
 
@@ -441,9 +461,44 @@ class FPUtils:
             EmissiveShader.inputs[3].default_value = Data.get('A')
             links.new(EmissiveShader.outputs[0], EmissiveNode.inputs[0])
 
+        TattooTexture = FPUtils.FindOccurance(lambda x: x.get("Info") == "Tattoo_Texture", TextureParams)
+        if TattooTexture:
+            if Image := FPUtils.ImportTexture(TattooTexture.get("Value")):
+                TattooNode = nodes.new(type="ShaderNodeTexImage")
+                TattooNode.image = Image
+                TattooNode.image.alpha_mode = 'CHANNEL_PACKED'
+                TattooNode.location = [-500, 0]
+                TattooNode.hide = True
+
+                UVMapNode = nodes.new(type="ShaderNodeUVMap")
+                UVMapNode.location = [-700, 25]
+                UVMapNode.uv_map = 'EXTRAUVS0'
+
+                links.new(UVMapNode.outputs[0], TattooNode.inputs[0])
+
+                MixNode = nodes.new(type="ShaderNodeMixRGB")
+                MixNode.location = [-200, 75]
+
+                links.new(TattooNode.outputs[1], MixNode.inputs[0])
+                links.new(TattooNode.outputs[0], MixNode.inputs[2])
+
+                DiffuseNode = Shader.inputs[0].links[0].from_node
+                DiffuseNode.location = [-500, -75]
+                links.new(DiffuseNode.outputs[0], MixNode.inputs[1])
+                links.new(MixNode.outputs[0], Shader.inputs[0])
+
+
+
+
     @staticmethod
     def ReadConfig(self, context):
         FPUtils.FixRelativePath('ConfigFile')
+        if not os.path.isfile(Settings.ConfigFile):
+            Settings.ConfigFile = ""
+            return
+        if not os.path.basename(Settings.ConfigFile) == "config.json":
+            Settings.ConfigFile = ""
+            return
         if Settings.ConfigFile == "" or not os.path.exists(Settings.ConfigFile):
             return
 
@@ -827,8 +882,6 @@ class FPUtils:
             con.chain_count = 2
 
         TrackBones = [
-            ('R_eye', 'eye_control_r', 0),
-            ('L_eye', 'eye_control_l', 0),
             ('eye_control_mid', 'head', 0.285)
         ]
         for Bone in TrackBones:
@@ -839,6 +892,23 @@ class FPUtils:
                 con.head_tail = Bone[2]
                 con.track_axis = 'TRACK_Y'
                 con.up_axis = 'UP_Z'
+
+        # Bone, Target, Ignored Axis
+        LockTrackBones = [
+            ('R_eye', 'eye_control_r', ['Y']),
+            ('L_eye', 'eye_control_l', ['Y']),
+        ]
+
+        for Bone in LockTrackBones:
+            if PoseBone := PoseBones.get(Bone[0]):
+                for Axis in ['X', 'Y', 'Z']:
+                    if Axis in Bone[2]:
+                        continue
+                    con = PoseBone.constraints.new('LOCKED_TRACK')
+                    con.target = MasterSkeleton
+                    con.subtarget = Bone[1]
+                    con.track_axis = 'TRACK_Y'
+                    con.lock_axis = 'LOCK_' + Axis
 
         Bones = MasterSkeleton.data.bones
         for Bone in ['hand_r', 'hand_l', 'foot_r', 'foot_l', 'faceAttach']:
@@ -893,6 +963,7 @@ class FPPanel(Panel):
             layout.row().label(text="Invalid Config File!", icon='ERROR')
             return
 
+        box.row().operator("fp.sync", icon='FILE_REFRESH')
         box.row().prop(Settings, "PaksFolder")
         box.row().prop(Settings, "MainKey")
         box.row().prop(Settings, "CloseOnFinish")
@@ -932,7 +1003,11 @@ class FPPanel(Panel):
         TastyRow.prop(Settings, "IKRig")
         TastyRow.operator("fp.tasty", icon='URL')
         MergeRow = box.row()
-        MergeRow.prop(Settings, "MergeSkeletons")
+        MergeCol = MergeRow.column()
+        MergeCol.prop(Settings, "MergeSkeletons")
+        TweaksCol = MergeRow.column()
+        #TweaksCol.prop(Settings, "MeshTweaks")
+        TweaksCol.enabled = Settings.MergeSkeletons
         ReorientRow = box.row()
         ReorientRow.prop(Settings, "ReorientedBones")
         if Settings.IKRig:
@@ -940,6 +1015,7 @@ class FPPanel(Panel):
             ReorientRow.enabled = False
         box.row().prop(Settings, "ImportQuads")
         box.row().prop(Settings, "ImportMaterials")
+
         box.row().prop(Settings, "CreateCollections")
         box.row().prop(Settings, "ImportFile")
         ImportButtonRow = box.row()
@@ -974,11 +1050,12 @@ class FPSettings(PropertyGroup):
     ExportString: StringProperty(name="")
 
     # Import
-    MergeSkeletons: BoolProperty(name="Merge Skeletons")
-    ReorientedBones: BoolProperty(name="Reorient Bones")
     IKRig: BoolProperty(name="Use Tasty™ Rig", update=lambda s, c: FPUtils.CheckIKDeps())
+    MergeSkeletons: BoolProperty(name="Merge Skeletons", default=True)
+    ReorientedBones: BoolProperty(name="Reorient Bones")
     ImportQuads: BoolProperty(name="Use Quad Topology", default=True)
     ImportMaterials: BoolProperty(name="Import Materials", default=True)
+    MeshTweaks: BoolProperty(name="Pose Modifiers")
     CreateCollections: BoolProperty(name="Create Collections", default=True)
     ImportFile: StringProperty(name="Import File", subtype='FILE_PATH',
                                update=lambda s, c: FPUtils.FixRelativePath('ImportFile'))
@@ -1017,20 +1094,6 @@ class FPImport(Operator):
         Name = Processed.get("name")
         Type = Processed.get("type")
 
-        if Type == 'Emote':
-            Active = bpy.context.active_object
-            if Active.type == 'ARMATURE':
-                pass
-            else:
-                FPUtils.Popup("A Skeleton must be Selected!", icon='ERROR')
-                return {'FINISHED'}
-
-            AnimPath = Processed.get("animPart").get("animPath")
-            AnimName = AnimPath.split(".")[1]
-
-            FPUtils.ImportAnim(AnimPath, Active)
-            return
-
         FPUtils.CheckAppendData()
         if Settings.CreateCollections:
             FPUtils.CreateCollection(Name)
@@ -1048,7 +1111,7 @@ class FPImport(Operator):
             if not FPUtils.ImportMesh(MeshPath):
                 return
 
-            if Type == 'Mesh':
+            if Type == 'Mesh' and not bpy.context.active_object.type == 'ARMATURE':
                 ImportedMesh = bpy.context.active_object
             else:
                 Armature = bpy.context.active_object
@@ -1066,9 +1129,6 @@ class FPImport(Operator):
             if Settings.ImportQuads:
                 bpy.ops.object.editmode_toggle()
                 bpy.ops.mesh.tris_convert_to_quads(uvs=True)
-
-                if SlotType == 'Head':
-                    bpy.ops.mesh.remove_doubles()
                 bpy.ops.object.editmode_toggle()
 
             if Settings.ImportMaterials:
@@ -1083,11 +1143,11 @@ class FPImport(Operator):
         # disgusting nested code i apologize
         if VariantParams := Processed.get("variantParameters"):
             for Part in Processed.get("baseStyle"):
-                for Material in Part.get("materials"):
+                for mat in Part.get("materials"):
                     for ParamSet in VariantParams:
-                        if ParamSet.get("materialToAlter") != Material.get("matPath"):
+                        if ParamSet.get("materialToAlter") != mat.get("matPath"):
                             continue
-                        Params = Material.get("matParameters")
+                        Params = mat.get("matParameters")
                         for Texture in ParamSet.get("TextureParameters"):
                             Info = next(
                                 filter(lambda x: x.get("Info") == Texture.get("Info"), Params.get("TextureParameters")),
@@ -1135,7 +1195,7 @@ class FPImport(Operator):
             for StyleMaterial in StyleMaterials:
                 MaterialToSwap = StyleMaterial.get("materialToSwap").split(".")[1]
                 OverrideMaterialName = StyleMaterial.get("overrideMaterial").split(".")[1]
-                if not bpy.data.materials.get("MaterialToSwap"):
+                if not bpy.data.materials.get(MaterialToSwap):
                     continue
                 FPUtils.ImportMaterial(bpy.data.materials[MaterialToSwap], StyleMaterial.get("matParameters"),
                                        OverrideMaterialName)
@@ -1149,6 +1209,9 @@ class FPImport(Operator):
 
         if Settings.IKRig and Type == 'Character':
             FPUtils.TastyRig(MasterSkeleton)
+
+        if Settings.MeshTweaks:
+            MasterSkeleton.constraints[0]
 
         bpy.ops.object.select_all(action='DESELECT')
 
@@ -1272,7 +1335,17 @@ class FPTasty(Operator):
         return {'FINISHED'}
 
 
-Operators = [FPPanel, FPSettings, FPImport, FPExport, FPFill, FPCheckUpdate, FPUpdate, FPTasty]
+class FPSyncConfig(Operator):
+    bl_idname = "fp.sync"
+    bl_label = "Sync Config"
+
+    def execute(self, context):
+        FPUtils.WriteConfig(self, context)
+        FPUtils.ReadConfig(self, context)
+        return {'FINISHED'}
+
+
+Operators = [FPPanel, FPSettings, FPImport, FPExport, FPFill, FPCheckUpdate, FPUpdate, FPTasty, FPSyncConfig]
 
 
 def register():

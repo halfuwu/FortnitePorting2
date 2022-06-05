@@ -23,7 +23,7 @@ public static class Weapon
         else
             Log.Information("Generating first time weapons mapping file at {0}, this takes about 30 seconds", WeaponMappingsPath);
 
-            foreach (var (path, _) in Provider.Files)
+        foreach (var (path, _) in Provider.Files)
         {
             if (weaponMap.Keys.Contains(path)) continue;
             if (!path.SubstringAfterLast("/").StartsWith("wid_")) continue;

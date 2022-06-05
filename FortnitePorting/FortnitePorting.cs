@@ -32,6 +32,7 @@ public static class FortnitePorting
         {"-pickaxe", Pickaxe.Export},
         {"-emote", Emote.Export},
         {"-weapon", Weapon.Export},
+        //{"-vehicle", Vehicle.Export},
         {"-mesh", Mesh.Export},
     };
 
@@ -96,11 +97,16 @@ public static class FortnitePorting
             sw.Start();
             var type = args[0];
             var input = args[1].Trim();
+            if (!_exports.ContainsKey(type))
+            {
+                Log.Error("Invalid type parameter: {0}", type);
+                Exit(1);
+            }
             var export = _exports[type](input);
 
             if (export == null)
             {
-                Log.Information("Failed to export {0}", input);
+                Log.Information("Failed to export {0}: {1}", type[1..], input);
                 Exit(1);
             }
 
