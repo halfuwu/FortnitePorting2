@@ -1,4 +1,5 @@
-﻿using CUE4Parse.UE4.Assets.Exports;
+﻿using CUE4Parse_Conversion;
+using CUE4Parse.UE4.Assets.Exports;
 using CUE4Parse.UE4.Assets.Exports.Animation;
 using CUE4Parse.UE4.Assets.Exports.Material;
 using CUE4Parse.UE4.Assets.Exports.SkeletalMesh;
@@ -315,6 +316,14 @@ public static class AssetHelpers
         return parameters;
     }
 
+    private static ExporterOptions ExportOptions = new ExporterOptions()
+    {
+        Platform = ETexturePlatform.DesktopMobile,
+        LodFormat = ELodFormat.FirstLod,
+        MeshFormat = EMeshFormat.ActorX,
+        TextureFormat = ETextureFormat.Png,
+        ExportMorphTargets = false
+    };
     public static void ExportObject(UObject file)
     {
         RunningTasks.Add(Task.Run(() =>
@@ -323,12 +332,12 @@ public static class AssetHelpers
             {
                 if (!File.Exists(GetExportPath(file, "psk", "_LOD0")) && file is USkeletalMesh skeletalMesh)
                 {
-                    var exporter = new MeshExporter(skeletalMesh, ELodFormat.FirstLod, false);
+                    var exporter = new MeshExporter(skeletalMesh, ExportOptions, false);
                     exporter.TryWriteToDir(saveDirectory, out _);
                 }
                 else if (!File.Exists(GetExportPath(file, "pskx", "_LOD0")) && file is UStaticMesh staticMesh)
                 {
-                    var exporter = new MeshExporter(staticMesh, ELodFormat.FirstLod, false);
+                    var exporter = new MeshExporter(staticMesh, ExportOptions, false);
                     exporter.TryWriteToDir(saveDirectory, out _);
                 }
                 else if (!File.Exists(GetExportPath(file, "png")) && file is UTexture2D texture)
