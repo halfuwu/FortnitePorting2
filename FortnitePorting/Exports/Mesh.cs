@@ -9,15 +9,17 @@ namespace FortnitePorting.Exports;
 
 public class Mesh
 {
-    public static ExportFile? Export(string input)
+    public static ExportFile? Export(string input) => Export(input, null, null);
+
+    public static ExportFile? Export(string input, string? nameOverride, string? typeOverride)
     {
         var path = input.Replace(".uasset", "");
         
         if (Provider.TryLoadObject(path, out var mesh))
         {
             var export = new ExportFile();
-            export.type = "Mesh";
-            export.name = mesh.Name;
+            export.type = typeOverride ?? "Mesh";
+            export.name = nameOverride ?? mesh.Name;
             export.baseStyle = new List<ExportPart>();
 
             var exportPart = new ExportPart();

@@ -14,7 +14,7 @@ namespace FortnitePorting.Exports;
 
 public static class Weapon
 {
-    private static string WeaponMappingsPath = Path.Combine(dataDirectory.FullName, "WeaponMappings.json");
+    private static string WeaponMappingsPath = Path.Combine(DataDirectory.FullName, "WeaponMappings.json");
     public static ExportFile? Export(string input)
     {
         var weaponMap = new Dictionary<string, string>();
@@ -74,6 +74,8 @@ public static class Weapon
 
     private static UObject PromptWeapon(IReadOnlyList<UObject> weapons, string weaponName)
     {
+        if (weapons.Count == 1)
+            return weapons[0];
         Log.Information("{0} Rarities:", weaponName);
         for (var i = 0; i < weapons.Count; i++)
         {

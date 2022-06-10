@@ -17,9 +17,9 @@ public static class FortnitePorting
 {
     public static DefaultFileProvider Provider;
     private static Configuration _config;
-    public static readonly DirectoryInfo saveDirectory = new(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Saves"));
+    public static DirectoryInfo saveDirectory = new(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Saves"));
     private static readonly DirectoryInfo _exportDirectory = new(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Exports"));
-    public static readonly DirectoryInfo dataDirectory = new(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".data"));
+    public static readonly DirectoryInfo DataDirectory = new(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".data"));
   
     
     private static readonly Dictionary<string, Func<string, ExportFile?>> _exports = new()
@@ -30,10 +30,10 @@ public static class FortnitePorting
         {"-pet", Pet.Export},
         {"-glider", Glider.Export},
         {"-pickaxe", Pickaxe.Export},
-        {"-emote", Emote.Export},
         {"-weapon", Weapon.Export},
         //{"-vehicle", Vehicle.Export},
         {"-mesh", Mesh.Export},
+        {"-prop", Prop.Export},
     };
 
     public static void Main(string[] args)
@@ -47,79 +47,54 @@ public static class FortnitePorting
             
             var logPath = $"Logs/FortnitePorting-{DateTime.UtcNow:yyyy-MM-dd-hh-mm-ss}.log";
             Log.Logger = new LoggerConfiguration().WriteTo.Console().WriteTo.File(logPath).CreateLogger();
-
-
+            
             if (args.Length == 0)
             {
                 Log.Error("No command arguments found");
                 Exit(1);
             }
 
-            _config = JsonConvert.DeserializeObject<Configuration>(File.ReadAllText("config.json"));
-            if (_config == null)
-            {
-                Log.Error("Failed to load config");
-                Exit(1);
-            }
-
-            var GamePath = _config.PaksFolder;
-            var Key = _config.MainKey;
-
-            var ExtraDirs = new List<DirectoryInfo>
-            {
-                new(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) +
-                    "\\FortniteGame\\Saved\\PersistentDownloadDir\\InstalledBundles"),
-            };
-
-            ExtraDirs = ExtraDirs.Where(x => Directory.Exists(x.FullName)).ToList();
-            Provider = new DefaultFileProvider(new DirectoryInfo(GamePath), ExtraDirs,
-                SearchOption.AllDirectories, true, new VersionContainer(EGame.GAME_UE5_LATEST));
-            Provider.Initialize();
-            Provider.SubmitKey(new FGuid(), new FAesKey(Key));
-            foreach (var Entry in _config.DynamicKeys)
-            {
-                Provider.SubmitKey(new FGuid(Entry.Guid), new FAesKey(Entry.Key));
-            }
-
-            var usmap = GetNewestUsmap(dataDirectory.FullName);
-            if (usmap == null)
-            {
-                Log.Error("Failed to load mappings from file, attempting to load benbot mappings");
-                Provider.LoadMappings();
-            }
-            else
-            {
-                Log.Information("Loading mappings from {0}", usmap);
-                Provider.MappingsContainer = new FileUsmapTypeMappingsProvider(usmap); 
-            }
-            
-            var sw = new Stopwatch();
-            sw.Start();
             var type = args[0];
-            var input = args[1].Trim();
             if (!_exports.ContainsKey(type))
             {
                 Log.Error("Invalid type parameter: {0}", type);
                 Exit(1);
             }
-            var export = _exports[type](input);
-
-            if (export == null)
+            
+            LoadConfig();
+            if (_config.ExportFolder != string.Empty && Directory.Exists(_config.ExportFolder))
+                saveDirectory = new DirectoryInfo(_config.ExportFolder);
+            
+            LoadProvider();
+            
+            
+            var sw = new Stopwatch();
+            var inputs = args[1].Trim().Split(",");
+            foreach (var input in inputs)
             {
-                Log.Information("Failed to export {0}: {1}", type[1..], input);
-                Exit(1);
+                var name = input.Trim();
+                sw.Restart();
+                Log.Information("Exporting {0}: {1}", type[1..], name);
+                var export = _exports[type](name);
+                if (export == null)
+                {
+                    Log.Error("Failed to export {0}: {1}", type[1..], name);
+                    continue;
+                }
+                export.name = export.name.Trim();
+                Task.WaitAll(AssetHelpers.RunningTasks.ToArray());
+                
+                var exportJson = JsonConvert.SerializeObject(export,
+                    new JsonSerializerSettings
+                        { Formatting = Formatting.Indented, NullValueHandling = NullValueHandling.Ignore });
+                Directory.CreateDirectory(Path.Combine(_exportDirectory.FullName, export.type));
+                File.WriteAllText(Path.Combine(_exportDirectory.FullName, export.type, export.name + ".json"), exportJson);
+                
+                sw.Stop();
+                Log.Information("Finished exporting {0} in {1}s \n", export.name, Math.Round(sw.Elapsed.TotalSeconds, 2));
             }
-
-            Task.WaitAll(AssetHelpers.RunningTasks.ToArray());
-
-            var exportJson = JsonConvert.SerializeObject(export,
-                new JsonSerializerSettings
-                    { Formatting = Formatting.Indented, NullValueHandling = NullValueHandling.Ignore });
-            Directory.CreateDirectory(Path.Combine(_exportDirectory.FullName, export?.type));
-            File.WriteAllText(Path.Combine(_exportDirectory.FullName, export.type, export.name + ".json"), exportJson);
-            sw.Stop();
-
-            Log.Information("Finished exporting {0} in {1}s", export?.name, Math.Round(sw.Elapsed.TotalSeconds, 2));
+            
+          
         }
         catch (Exception e)
         {
@@ -130,6 +105,50 @@ public static class FortnitePorting
         
         if (!_config.bCloseOnFinish)
             Exit(0);
+    }
+
+    public static void LoadConfig(string path = "config.json")
+    {
+        _config = JsonConvert.DeserializeObject<Configuration>(File.ReadAllText(path));
+        if (_config == null)
+        {
+            Log.Error("Failed to load config");
+            Exit(1);
+        }
+    }
+
+    public static void LoadProvider()
+    {
+        var GamePath = _config.PaksFolder;
+        var Key = _config.MainKey;
+
+        var ExtraDirs = new List<DirectoryInfo>
+        {
+            new(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) +
+                "\\FortniteGame\\Saved\\PersistentDownloadDir\\InstalledBundles"),
+        };
+
+        ExtraDirs = ExtraDirs.Where(x => Directory.Exists(x.FullName)).ToList();
+        Provider = new DefaultFileProvider(new DirectoryInfo(GamePath), ExtraDirs,
+            SearchOption.AllDirectories, true, new VersionContainer(EGame.GAME_UE5_LATEST));
+        Provider.Initialize();
+        Provider.SubmitKey(new FGuid(), new FAesKey(Key));
+        foreach (var Entry in _config.DynamicKeys)
+        {
+            Provider.SubmitKey(new FGuid(Entry.Guid), new FAesKey(Entry.Key));
+        }
+
+        var usmap = GetNewestUsmap(DataDirectory.FullName);
+        if (usmap == null)
+        {
+            Log.Error("Failed to load mappings from file, attempting to load benbot mappings");
+            Provider.LoadMappings();
+        }
+        else
+        {
+            Log.Information("Loading mappings from {0}", usmap);
+            Provider.MappingsContainer = new FileUsmapTypeMappingsProvider(usmap); 
+        }
     }
     
     private static string? GetNewestUsmap(string mappingsFolder)
@@ -162,6 +181,7 @@ public static class FortnitePorting
     private class Configuration
     {
         public string PaksFolder;
+        public string ExportFolder;
         public bool bCloseOnFinish;
         public string MainKey;
         public List<DynamicKey> DynamicKeys;
