@@ -1,7 +1,10 @@
 import bpy
 import mathutils
-from bpy.props import StringProperty, BoolProperty, PointerProperty, EnumProperty, FloatProperty, FloatVectorProperty
+import glob
+from bpy.props import StringProperty, BoolProperty, PointerProperty, EnumProperty, FloatProperty, FloatVectorProperty, \
+    CollectionProperty
 from bpy.types import Operator, Panel, PropertyGroup, Scene
+from bpy_extras.io_utils import ImportHelper
 
 import os
 import urllib3
@@ -16,7 +19,7 @@ import json
 bl_info = {
     "name": "Fortnite Porting",
     "author": "Half",
-    "version": (0, 0, 3),
+    "version": (0, 0, 4),
     "blender": (3, 0, 0),
     "location": "View3D > Sidebar > Fortnite Porting",
     "description": "Blender Addon for Fortnite Porting",
@@ -37,9 +40,8 @@ class FPEnums:
         ("Pet", "Pet", "Pet"),
         ("Glider", "Glider", "Glider"),
         ("Pickaxe", "Pickaxe", "Pickaxe"),
-        ("Emote", "Emote", "Emote"),
         ("Weapon", "Weapon", "Weapon"),
-        #("Vehicle", "Vehicle", "Vehicle"),
+        ("Prop", "Prop", "Prop"),
         ("Mesh", "Mesh", "Mesh")
     ]
 
@@ -50,6 +52,16 @@ class FPEnums:
 
 
 class FPUtils:
+
+    @staticmethod
+    def CheckExportFolder():
+        if Settings.UseExportFolder:
+            Settings.ExportFolder = FPUtils.ExportFolderBackup
+        else:
+            FPUtils.ExportFolderBackup = Settings.ExportFolder
+            Settings.ExportFolder = ""
+
+    ExportFolderBackup = ""
 
     @staticmethod
     def Popup(text, icon='INFO'):
@@ -76,7 +88,7 @@ class FPUtils:
         with bpy.data.libraries.load(
                 os.path.join(os.path.dirname(Settings.ConfigFile), "FPData.blend")) as (
                 data_from, data_to):
-            for name in ['FP Basic', 'FP Default', 'FP Cropped Emissive']:
+            for name in ['FP Basic', 'FP Default', 'FP Cropped Emissive', 'FP VertexMask']:
                 if not bpy.data.node_groups.get(name):
                     data_to.node_groups = data_from.node_groups
             for part in ['RIG_FaceBone', 'RIG_FingerRotL', 'RIG_FingerRotR', 'RIG_FootL', 'RIG_FootR', 'RIG_Forearm',
@@ -89,7 +101,10 @@ class FPUtils:
     @staticmethod
     def ImportAnim(path: str, skeleton: bpy.types.Armature) -> bool:
         path = path[1:] if path.startswith("/") else path
-        AnimPath = os.path.join(os.path.dirname(Settings.ConfigFile), "Saves", path.split(".")[0] + "_SEQ0") + ".psa"
+        AnimPath = os.path.join(
+            Settings.ExportFolder if Settings.UseExportFolder else os.path.join(os.path.dirname(Settings.ConfigFile),
+                                                                                "Saves"),
+            path.split(".")[0] + "_SEQ0") + ".psa"
         if not os.path.exists(AnimPath):
             return False
         return psaimport(AnimPath, bpy.context, oArmature=skeleton)
@@ -97,19 +112,22 @@ class FPUtils:
     @staticmethod
     def ImportMesh(path: str) -> bool:
         path = path[1:] if path.startswith("/") else path
-        MeshPath = os.path.join(os.path.dirname(Settings.ConfigFile), "Saves",
-                                path.split(".")[0] + "_LOD0")
+        MeshPath = os.path.join(
+            Settings.ExportFolder if Settings.UseExportFolder else os.path.join(os.path.dirname(Settings.ConfigFile),
+                                                                                "Saves"), path.split(".")[0] + "_LOD0")
         if os.path.exists(MeshPath + ".psk"):
             MeshPath += ".psk"
         if os.path.exists(MeshPath + ".pskx"):
             MeshPath += ".pskx"
-        return pskimport(MeshPath, bpy.context, bReorientBones=Settings.ReorientedBones)
+        return pskimport(MeshPath, bpy.context, bReorientBones=Settings.ReorientedBones, bScaleDown=Settings.ScaleDown)
 
     @staticmethod
     def ImportTexture(path: str) -> bpy.types.Image:
         path = path.split(".")[0]
         path = path[1:] if path.startswith("/") else path
-        TexturePath = os.path.join(os.path.dirname(Settings.ConfigFile), "Saves", path + ".png")
+        TexturePath = os.path.join(
+            Settings.ExportFolder if Settings.UseExportFolder else os.path.join(os.path.dirname(Settings.ConfigFile),
+                                                                                "Saves"), path + ".png")
         if not os.path.exists(TexturePath):
             return False
         return bpy.data.images.load(TexturePath)
@@ -130,7 +148,7 @@ class FPUtils:
                 bpy.context.view_layer.objects.active = Skeleton  # body skeleton
             if (Part != 'Hat' and Part != 'MiscOrTail') or (Data[
                                                                 'Socket'] == 'Face' or (Data[
-                                                                'Socket'] == "None" and Part != 'MiscOrTail')):  # skip parented stuff unless face socket or none
+                                                                                            'Socket'] == "None" and Part != 'MiscOrTail')):  # skip parented stuff unless face socket or none
                 Skeleton.select_set(True)
                 Meshes[Part] = FPUtils.MeshFromSkeleton(Skeleton)
             else:
@@ -196,7 +214,6 @@ class FPUtils:
                 con.target = MasterSkeleton
                 con.subtarget = Skeleton.pose.bones[0].name
 
-
         return MasterSkeleton
 
     @staticmethod
@@ -216,6 +233,8 @@ class FPUtils:
     @staticmethod
     def CreateCollection(name: str):
         if name in bpy.data.collections:
+            bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection.children[
+                name]
             return
         bpy.ops.object.select_all(action='DESELECT')
         bpy.ops.collection.create(name=name)
@@ -281,7 +300,8 @@ class FPUtils:
             ("Normal Map", 11, [-300, -225]),
 
             ("Emissive", 13, [-300, -275]),
-            ("Visor_Emissive", 13, [-300, -275])
+            ("Visor_Emissive", 13, [-300, -275]),
+
         ],
         "NumMap": [
             ("RoughnessMin", 9),
@@ -309,26 +329,26 @@ class FPUtils:
     }
 
     VertexColorMap = {
-        "Hide Element 01": 1,
-        "Hide Element 1_5": 2,
-        "Hide Element 02": 3,
-        "Hide Element 2_5": 4,
-        "Hide Element 03": 5,
-        "Hide Element 3_5": 6,
-        "Hide Element 04": 7,
-        "Hide Element 4_5": 8,
-        "Hide Element 05": 9,
-        "Hide Element 5_5": 10,
-        "Hide Element 06": 11,
-        "Hide Element 6_5": 12,
-        "Hide Element 07": 13,
-        "Hide Element 7_5": 14,
-        "Hide Element 08": 15,
-        "Hide Element 8_5": 16,
-        "Hide Element 09": 17,
-        "Hide Element 9_5": 18,
-        "Hide Element 10": 19,
-        "Hide Element 10_5": 20,
+        "Hide Element 01": 2,
+        "Hide Element 1_5": 3,
+        "Hide Element 02": 4,
+        "Hide Element 2_5": 5,
+        "Hide Element 03": 6,
+        "Hide Element 3_5": 7,
+        "Hide Element 04": 8,
+        "Hide Element 4_5": 9,
+        "Hide Element 05": 10,
+        "Hide Element 5_5": 11,
+        "Hide Element 06": 12,
+        "Hide Element 6_5": 13,
+        "Hide Element 07": 14,
+        "Hide Element 7_5": 15,
+        "Hide Element 08": 16,
+        "Hide Element 8_5": 17,
+        "Hide Element 09": 18,
+        "Hide Element 9_5": 19,
+        "Hide Element 10": 20,
+        "Hide Element 10_5": 21,
     }
 
     LinearList = [
@@ -352,14 +372,14 @@ class FPUtils:
         links = Target.node_tree.links
         links.clear()
 
-        if Mesh and {x for x in ["HairNone", "NoHair"] if x in Target.name}:
+        '''if Mesh and {x for x in ["HairNone", "NoHair", "Hair_Hide"] if x in Target.name}:
             bpy.ops.object.editmode_toggle()
             bpy.ops.mesh.select_all(action='DESELECT')
             slot = Mesh.material_slots.find(Target.name)
             bpy.context.object.active_material_index = slot
             bpy.ops.object.material_slot_select()
             bpy.ops.mesh.delete(type='FACE')
-            bpy.ops.object.editmode_toggle()
+            bpy.ops.object.editmode_toggle()'''
 
         Output = nodes.new(type="ShaderNodeOutputMaterial")
         Output.location = 200, 0
@@ -394,13 +414,15 @@ class FPUtils:
                 return
 
             Node = nodes.new(type="ShaderNodeTexImage")
+            Node.name = Param.get("Info")
             Node.image = Image
             Node.image.alpha_mode = 'CHANNEL_PACKED'
             Node.location = NodeInfo[2]
             Node.hide = True
             if NodeInfo[0] in FPUtils.LinearList:
                 Node.image.colorspace_settings.name = "Linear"
-            links.new(Node.outputs[0], Shader.inputs[NodeInfo[1]])
+            if NodeInfo[1] is not None:
+                links.new(Node.outputs[0], Shader.inputs[NodeInfo[1]])
 
         def ScalarParam(Param):
             NodeInfo = FPUtils.FindOccurance(lambda x: x[0] == Param.get("Info"), TargetShaderMap["NumMap"])
@@ -440,6 +462,34 @@ class FPUtils:
             for Param in SwitchParams:
                 continue
                 # SwitchParam(Param)
+        if ComponentMaskParams := Data.get("ComponentMaskParameters"):
+            for Param in ComponentMaskParams:
+                continue
+
+        Shader.node_tree.nodes["Principled BSDF"].inputs[2].default_value = Settings.SSRadius
+
+        UseVertexColorsForMask = FPUtils.FindOccurance(
+            lambda x: x.get("Info") == "Use Vertex Colors for Mask", SwitchParams)
+        if UseVertexColorsForMask and Settings.AlphaVertex:
+            Target.blend_method = "CLIP"
+            Target.shadow_method = "CLIP"
+            Target.show_transparent_back = False
+
+            VertexColorNode = nodes.new(type="ShaderNodeVertexColor")
+            VertexColorNode.location = [-800, -500]
+            VertexColorNode.layer_name = 'PSKVTXCOL_0'
+
+            VertexMaskShader = nodes.new("ShaderNodeGroup")
+            VertexMaskShader.node_tree = bpy.data.node_groups.get("FP VertexMask")
+            VertexMaskShader.location = [-600, -500]
+            links.new(VertexColorNode.outputs[0], VertexMaskShader.inputs[0])
+            links.new(VertexColorNode.outputs[1], VertexMaskShader.inputs[1])
+            links.new(VertexMaskShader.outputs[0], Shader.inputs[len(Shader.inputs) - 1])
+
+            for Scalar in ScalarParams:
+                FoundKey = FPUtils.FindOccurance(lambda key: key == Scalar.get("Info"), FPUtils.VertexColorMap)
+                if FoundKey:
+                    VertexMaskShader.inputs[FPUtils.VertexColorMap.get(FoundKey)].default_value = int(Scalar.get("Value"))
 
         UseCroppedEmissive = FPUtils.FindOccurance(
             lambda x: x.get("Info") == "CroppedEmissive", SwitchParams)
@@ -448,18 +498,20 @@ class FPUtils:
 
         if UseCroppedEmissive and CroppedEmissivePositions:
             EmissiveData = FPUtils.FindOccurance(lambda x: x[0] == "Emissive", TargetShaderMap["TexMap"])
-            EmissiveNode = Shader.inputs[EmissiveData[1]].links[0].from_node
-            EmissiveNode.extension = 'CLIP'
-            Data = CroppedEmissivePositions.get("Value")
+            EmissiveSlot = Shader.inputs[EmissiveData[1]]
+            if len(EmissiveSlot.links) > 0:
+                EmissiveNode = EmissiveSlot.links[0].from_node
+                EmissiveNode.extension = 'CLIP'
+                Data = CroppedEmissivePositions.get("Value")
 
-            EmissiveShader = nodes.new("ShaderNodeGroup")
-            EmissiveShader.node_tree = bpy.data.node_groups.get("FP Cropped Emissive")
-            EmissiveShader.location = [EmissiveData[2][0]-200, EmissiveData[2][1]+25]
-            EmissiveShader.inputs[0].default_value = Data.get('R')
-            EmissiveShader.inputs[1].default_value = Data.get('G')
-            EmissiveShader.inputs[2].default_value = Data.get('B')
-            EmissiveShader.inputs[3].default_value = Data.get('A')
-            links.new(EmissiveShader.outputs[0], EmissiveNode.inputs[0])
+                EmissiveShader = nodes.new("ShaderNodeGroup")
+                EmissiveShader.node_tree = bpy.data.node_groups.get("FP Cropped Emissive")
+                EmissiveShader.location = [EmissiveData[2][0] - 200, EmissiveData[2][1] + 25]
+                EmissiveShader.inputs[0].default_value = Data.get('R')
+                EmissiveShader.inputs[1].default_value = Data.get('G')
+                EmissiveShader.inputs[2].default_value = Data.get('B')
+                EmissiveShader.inputs[3].default_value = Data.get('A')
+                links.new(EmissiveShader.outputs[0], EmissiveNode.inputs[0])
 
         TattooTexture = FPUtils.FindOccurance(lambda x: x.get("Info") == "Tattoo_Texture", TextureParams)
         if TattooTexture:
@@ -487,8 +539,68 @@ class FPUtils:
                 links.new(DiffuseNode.outputs[0], MixNode.inputs[1])
                 links.new(MixNode.outputs[0], Shader.inputs[0])
 
+        '''
+        UseGradients = FPUtils.FindOccurance(lambda x: x.get("Info") == "useGmapGradientLayers", SwitchParams)
+        if UseGradients:
+            LayerShader = nodes.new("ShaderNodeGroup")
+            LayerShader.node_tree = bpy.data.node_groups.get("GST")
+            LayerShader.location = [-750, 0]
 
+            MixNode = nodes.new("ShaderNodeMixRGB")
+            MixNode.location = [-500, 150]
+            links.new(LayerShader.outputs[0], MixNode.inputs[2])
 
+            MaskNode: bpy.types.Node
+            MaskTexture = FPUtils.FindOccurance(lambda x: x.get("Info") == f"Layer Mask", TextureParams)
+            if MaskTexture and (Image := FPUtils.ImportTexture(MaskTexture.get("Value"))):
+                MaskNode = nodes.new(type="ShaderNodeTexImage")
+                MaskNode.image = Image
+                MaskNode.image.alpha_mode = 'CHANNEL_PACKED'
+                MaskNode.location = [-1200, 0]
+                MaskNode.hide = True
+
+                links.new(MaskNode.outputs[0], LayerShader.inputs[0])
+                links.new(MaskNode.outputs[1], LayerShader.inputs[1])
+
+            FXNode: bpy.types.Node
+            FXTexture = FPUtils.FindOccurance(lambda x: x.get("Info") == "SkinFX_Mask", TextureParams)
+            if FXTexture and (Image := FPUtils.ImportTexture(FXTexture.get("Value"))):
+                FXNode = nodes.new(type="ShaderNodeTexImage")
+                FXNode.image = Image
+                FXNode.image.alpha_mode = 'CHANNEL_PACKED'
+                FXNode.location = [-1200, 0]
+                FXNode.hide = True
+
+            ValueNode = nodes.new("ShaderNodeValue")
+            ValueNode.location = [-1400, -150]
+            ValueNode.outputs[0].default_value = 0.5
+
+            for i in range(1, 6):
+                LayerTexture = FPUtils.FindOccurance(lambda x: x.get("Info") == f"Layer{i}_Gradient", TextureParams)
+                if LayerTexture and (Image := FPUtils.ImportTexture(LayerTexture.get("Value"))):
+                    LayerNode = nodes.new(type="ShaderNodeTexImage")
+                    LayerNode.image = Image
+                    LayerNode.image.alpha_mode = 'CHANNEL_PACKED'
+                    LayerNode.location = [-1200, i*-50]
+                    LayerNode.hide = True
+                    links.new(LayerNode.outputs[0], LayerShader.inputs[i+1])
+                    links.new(ValueNode.outputs[0], LayerNode.inputs[0])
+
+            SkinCustomizationChannel = FPUtils.FindOccurance(lambda x: x.get("Info") == "GmapSkinCustomization_Channel", ComponentMaskParams)
+            if SkinCustomizationChannel:
+                Channel = SkinCustomizationChannel.get("Value")
+                MaskShader = nodes.new("ShaderNodeGroup")
+                MaskShader.node_tree = bpy.data.node_groups.get("FP Channel Mask")
+                MaskShader.location = [-750, 150]
+                links.new(FXNode.outputs[0], MaskShader.inputs[0])
+                MaskShader.inputs[1].default_value = Channel['R'], Channel['G'], Channel['B'],  Channel['A']
+                links.new(MaskShader.outputs[0], MixNode.inputs[0])
+
+        DiffuseNode = nodes.get("Diffuse")
+        if DiffuseNode:
+            links.new(DiffuseNode.outputs[0], MixNode.inputs[1])
+            links.new(MixNode.outputs[0], Shader.inputs[0])
+        '''
 
     @staticmethod
     def ReadConfig(self, context):
@@ -505,18 +617,21 @@ class FPUtils:
         with open(Settings.ConfigFile, 'r') as ConfigFile:
             Config = json.loads(ConfigFile.read())
             Settings.PaksFolder = Config.get("PaksFolder")
+            Settings.ExportFolder = Config.get("ExportFolder")
             Settings.MainKey = Config.get("MainKey")
             Settings.CloseOnFinish = Config.get("bCloseOnFinish")
 
     @staticmethod
     def WriteConfig(self, context):
         FPUtils.FixRelativePath('PaksFolder')
+        FPUtils.FixRelativePath('ExportFolder')
         if Settings.ConfigFile == "" or not os.path.exists(Settings.ConfigFile):
             return
 
         with open(Settings.ConfigFile, 'r') as ConfigFile:
             Config = json.loads(ConfigFile.read())
             Config["PaksFolder"] = Settings.PaksFolder
+            Config["ExportFolder"] = Settings.ExportFolder
             Config["MainKey"] = Settings.MainKey
             Config["bCloseOnFinish"] = Settings.CloseOnFinish
             json.dump(Config, open(Settings.ConfigFile, "w"), indent=4)
@@ -964,6 +1079,13 @@ class FPPanel(Panel):
             return
 
         box.row().operator("fp.sync", icon='FILE_REFRESH')
+        ExportRow = box.row()
+        ExportCheckCol = ExportRow.column()
+        ExportCheckCol.prop(Settings, "UseExportFolder")
+        ExportPathCol = ExportRow.column()
+        ExportPathCol.prop(Settings, "ExportFolder")
+        ExportPathCol.enabled = Settings.UseExportFolder
+
         box.row().prop(Settings, "PaksFolder")
         box.row().prop(Settings, "MainKey")
         box.row().prop(Settings, "CloseOnFinish")
@@ -981,13 +1103,13 @@ class FPPanel(Panel):
             BasicBox.row().prop(Settings, "AOStrength")
             BasicBox.row().prop(Settings, "CavityStrength")
             BasicBox.row().prop(Settings, "SSStrength")
+            BasicBox.row().prop(Settings, "SSRadius")
             SSRow = BasicBox.row()
             SSRow.prop(Settings, "CustomSS")
             if Settings.CustomSS:
                 SSRow.prop(Settings, "SSColor")
             Alpha = BasicBox.row()
             Alpha.prop(Settings, "AlphaVertex")
-            Alpha.enabled = False
 
         if Settings.ShaderType == 'Advanced':
             FXBox = box.box()
@@ -999,20 +1121,24 @@ class FPPanel(Panel):
 
         box = layout.box()
         box.row().label(text="Import", icon='IMPORT')
-        TastyRow = box.row()
+
+        ArmatureBox = box.box()
+        ArmatureBox.row().label(text="Rigging", icon='OUTLINER_OB_ARMATURE')
+        TastyRow = ArmatureBox.row()
         TastyRow.prop(Settings, "IKRig")
         TastyRow.operator("fp.tasty", icon='URL')
-        MergeRow = box.row()
+        MergeRow = ArmatureBox.row()
         MergeCol = MergeRow.column()
         MergeCol.prop(Settings, "MergeSkeletons")
         TweaksCol = MergeRow.column()
-        #TweaksCol.prop(Settings, "MeshTweaks")
+        TweaksCol.prop(Settings, "MeshTweaks")
         TweaksCol.enabled = Settings.MergeSkeletons
-        ReorientRow = box.row()
+        ReorientRow = ArmatureBox.row()
         ReorientRow.prop(Settings, "ReorientedBones")
         if Settings.IKRig:
-            MergeRow.enabled = False
+            MergeCol.enabled = False
             ReorientRow.enabled = False
+        box.row().prop(Settings, "ScaleDown")
         box.row().prop(Settings, "ImportQuads")
         box.row().prop(Settings, "ImportMaterials")
 
@@ -1021,6 +1147,8 @@ class FPPanel(Panel):
         ImportButtonRow = box.row()
         ImportButtonRow.operator("fp.import", icon='IMPORT')
         ImportButtonRow.enabled = Settings.ImportFile != ""
+        box.row().operator("fp.importrecent", icon='SORTTIME')
+        box.row().operator("fp.importbulk", icon='MOD_ARRAY')
 
         box = layout.box()
         box.row().label(text="Export", icon='EXPORT')
@@ -1040,6 +1168,8 @@ class FPPanel(Panel):
 class FPSettings(PropertyGroup):
     # Config
     ConfigFile: StringProperty(name="Config", subtype='FILE_PATH', update=FPUtils.ReadConfig)
+    UseExportFolder: BoolProperty(name="Use Export Folder", update=lambda s, c: FPUtils.CheckExportFolder())
+    ExportFolder: StringProperty(name="Export", subtype='DIR_PATH', update=FPUtils.WriteConfig)
     PaksFolder: StringProperty(name="Paks", subtype='DIR_PATH', update=FPUtils.WriteConfig)
     MainKey: StringProperty(name="Main Key", update=FPUtils.WriteConfig)
     CloseOnFinish: BoolProperty(name="Close Console on Finish", update=FPUtils.WriteConfig)
@@ -1057,6 +1187,7 @@ class FPSettings(PropertyGroup):
     ImportMaterials: BoolProperty(name="Import Materials", default=True)
     MeshTweaks: BoolProperty(name="Pose Modifiers")
     CreateCollections: BoolProperty(name="Create Collections", default=True)
+    ScaleDown: BoolProperty(name="Scale Down", default=True)
     ImportFile: StringProperty(name="Import File", subtype='FILE_PATH',
                                update=lambda s, c: FPUtils.FixRelativePath('ImportFile'))
 
@@ -1064,11 +1195,13 @@ class FPSettings(PropertyGroup):
     ShaderType: EnumProperty(name="Shader", items=FPEnums.ShaderType, default='Default')
 
     SSStrength: FloatProperty(name="Subsurface", default=0.0, min=0.0, max=1.0, subtype='FACTOR')
+    SSRadius: FloatVectorProperty(name="Subsurface Radius", default=(1, 0.2, 0.1), soft_min=0.0, soft_max=1.0,
+                                  subtype='COLOR')
     AOStrength: FloatProperty(name="Ambient Occlusion", default=0.0, min=0.0, max=1.0, subtype='FACTOR')
     CavityStrength: FloatProperty(name="Cavity", default=0.0, min=0.0, max=1.0, subtype='FACTOR')
     CustomSS: BoolProperty(name="Custom Subsurface Color")
     SSColor: FloatVectorProperty(name="", subtype='COLOR', default=[1.0, 0.2, 0.1], min=0.0, max=1.0)
-    AlphaVertex: BoolProperty(name="Use Vertex Color Masking", description="Not Implemented")
+    AlphaVertex: BoolProperty(name="Use Vertex Color Masking", default=True)
 
     FXEmission: BoolProperty(name="Use FX Emission")
     FXClearCoat: BoolProperty(name="Use FX ClearCoat")
@@ -1078,17 +1211,17 @@ class FPSettings(PropertyGroup):
 
 class FPImport(Operator):
     bl_idname = "fp.import"
-    bl_label = "Import"
+    bl_label = "Import From File"
     bl_context = 'scene'
 
     def execute(self, context):
-        self.Import()
+        self.Import(Settings.ImportFile)
         return {'FINISHED'}
 
     @staticmethod
-    def Import():
+    def Import(File, position=None):
         bpy.ops.object.select_all(action='DESELECT')
-        with open(Settings.ImportFile, 'r') as ImportFile:
+        with open(File, 'r') as ImportFile:
             Processed = json.loads(ImportFile.read())
 
         Name = Processed.get("name")
@@ -1111,7 +1244,8 @@ class FPImport(Operator):
             if not FPUtils.ImportMesh(MeshPath):
                 return
 
-            if Type == 'Mesh' and not bpy.context.active_object.type == 'ARMATURE':
+
+            if (Type == 'Mesh' or Type == "Prop") and not bpy.context.active_object.type == 'ARMATURE':
                 ImportedMesh = bpy.context.active_object
             else:
                 Armature = bpy.context.active_object
@@ -1140,48 +1274,62 @@ class FPImport(Operator):
                                            Material.get("matParameters"), Material.get("matPath").split(".")[1],
                                            ImportedMesh)
 
-        # disgusting nested code i apologize
-        if VariantParams := Processed.get("variantParameters"):
-            for Part in Processed.get("baseStyle"):
-                for mat in Part.get("materials"):
-                    for ParamSet in VariantParams:
-                        if ParamSet.get("materialToAlter") != mat.get("matPath"):
+            def ApplyParams(mat):
+                for ParamSet in VariantParams:
+                    if ParamSet.get("materialToAlter") != mat.get("matPath") and ParamSet.get(
+                            "materialToAlter") != mat.get("overrideMaterial"):
+                        continue
+                    Params = mat.get("matParameters")
+                    for Texture in ParamSet.get("TextureParameters"):
+                        Info = next(
+                            filter(lambda x: x.get("Info") == Texture.get("Info"),
+                                   Params.get("TextureParameters")),
+                            None)
+                        if Info:
+                            Info["Value"] = Texture.get("Value")
                             continue
-                        Params = mat.get("matParameters")
-                        for Texture in ParamSet.get("TextureParameters"):
-                            Info = next(
-                                filter(lambda x: x.get("Info") == Texture.get("Info"), Params.get("TextureParameters")),
-                                None)
-                            if Info:
-                                Info["Value"] = Texture.get("Value")
-                                continue
-                            Params.get("TextureParameters").append({
-                                "Info": Texture.get("Info"),
-                                "Value": Texture.get("Value")
-                            })
-                        for Float in ParamSet.get("ScalarParameters"):
-                            Info = next(
-                                filter(lambda x: x.get("Info") == Float.get("Info"), Params.get("ScalarParameters")),
-                                None)
-                            if Info:
-                                Info["Value"] = Float.get("Value")
-                                continue
-                            Params.get("ScalarParameters").append({
-                                "Info": Float.get("Info"),
-                                "Value": Float.get("Value")
-                            })
+                        Params.get("TextureParameters").append({
+                            "Info": Texture.get("Info"),
+                            "Value": Texture.get("Value")
+                        })
+                    for Float in ParamSet.get("ScalarParameters"):
+                        Info = next(
+                            filter(lambda x: x.get("Info") == Float.get("Info"),
+                                   Params.get("ScalarParameters")),
+                            None)
+                        if Info:
+                            Info["Value"] = Float.get("Value")
+                            continue
+                        Params.get("ScalarParameters").append({
+                            "Info": Float.get("Info"),
+                            "Value": Float.get("Value")
+                        })
 
-                        for Color in ParamSet.get("VectorParameters"):
-                            Info = next(
-                                filter(lambda x: x.get("Info") == Color.get("Info"), Params.get("VectorParameters")),
-                                None)
-                            if Info:
-                                Info["Value"] = Color.get("Value")
-                                continue
-                            Params.get("VectorParameters").append({
-                                "Info": Color.get("Info"),
-                                "Value": Color.get("Value")
-                            })
+                    for Color in ParamSet.get("VectorParameters"):
+                        Info = next(
+                            filter(lambda x: x.get("Info") == Color.get("Info"),
+                                   Params.get("VectorParameters")),
+                            None)
+                        if Info:
+                            Info["Value"] = Color.get("Value")
+                            continue
+                        Params.get("VectorParameters").append({
+                            "Info": Color.get("Info"),
+                            "Value": Color.get("Value")
+                        })
+                # disgusting nested code i apologize
+
+            if VariantParams := Processed.get("variantParameters"):
+                for Part in Processed.get("baseStyle"):
+                    for material in Part.get("materials"):
+                        ApplyParams(material)
+                if VariantParts := Processed.get("variantParts"):
+                    for Part in VariantParts:
+                        for material in Part.get("materials"):
+                            ApplyParams(material)
+                if VariantMaterials := Processed.get("variantMaterials"):
+                    for VariantMaterial in VariantMaterials:
+                        ApplyParams(VariantMaterial)
 
         if StyleParts := Processed.get("variantParts"):
             for StylePart in StyleParts:
@@ -1207,13 +1355,60 @@ class FPImport(Operator):
         if Settings.MergeSkeletons:
             MasterSkeleton = FPUtils.MergeSkeletons(ImportedSlots)
 
+        if position is not None:
+            MasterSkeleton.location = position
+
         if Settings.IKRig and Type == 'Character':
             FPUtils.TastyRig(MasterSkeleton)
 
         if Settings.MeshTweaks:
-            MasterSkeleton.constraints[0]
+            MasterMesh = FPUtils.MeshFromSkeleton(MasterSkeleton)
+            MasterMesh.modifiers[0].use_deform_preserve_volume = True
+            CorrectiveSmoothMod = MasterMesh.modifiers.new(name="CorrectiveSmooth", type='CORRECTIVE_SMOOTH')
+            CorrectiveSmoothMod.use_pin_boundary = True
 
         bpy.ops.object.select_all(action='DESELECT')
+
+
+class FPImportRecent(Operator):
+    bl_idname = "fp.importrecent"
+    bl_label = "Import Newest Export"
+    bl_context = 'scene'
+
+    def execute(self, context):
+        ExportsPath = os.path.join(os.path.dirname(Settings.ConfigFile), "Exports")
+        Files = glob.glob(ExportsPath + "/**", recursive=True)
+        Latest = max(Files, key=os.path.getmtime)
+        FPImport.Import(Latest)
+        return {'FINISHED'}
+
+
+class FPImportBulk(Operator, ImportHelper):
+    bl_idname = "fp.importbulk"
+    bl_label = "Bulk Import From Files"
+    bl_context = 'scene'
+
+    directory: StringProperty(subtype='DIR_PATH')
+    filename_ext = ".json"
+    filter_glob: StringProperty(
+        default="*.json",
+        options={'HIDDEN'},
+        maxlen=255,
+    )
+    files: CollectionProperty(
+        type=bpy.types.OperatorFileListElement,
+        options={'HIDDEN', 'SKIP_SAVE'},
+    )
+
+    def execute(self, context):
+        Idx = 0
+        for file in self.files:
+            path = os.path.join(self.directory, file.name)
+            if not os.path.isfile(path):
+                continue
+            FPImport.Import(path, position=[Idx, 0, 0])
+            Idx += 1
+        return {'FINISHED'}
 
 
 class FPExport(Operator):
@@ -1345,7 +1540,9 @@ class FPSyncConfig(Operator):
         return {'FINISHED'}
 
 
-Operators = [FPPanel, FPSettings, FPImport, FPExport, FPFill, FPCheckUpdate, FPUpdate, FPTasty, FPSyncConfig]
+Operators = [FPPanel, FPSettings, FPImport, FPImportRecent, FPImportBulk, FPExport, FPFill, FPCheckUpdate, FPUpdate,
+             FPTasty,
+             FPSyncConfig]
 
 
 def register():
