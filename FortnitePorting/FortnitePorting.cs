@@ -16,7 +16,7 @@ namespace FortnitePorting;
 public static class FortnitePorting
 {
     public static DefaultFileProvider Provider;
-    private static Configuration _config;
+    public static Configuration Config;
     public static DirectoryInfo saveDirectory = new(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Saves"));
     private static readonly DirectoryInfo _exportDirectory = new(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Exports"));
     public static readonly DirectoryInfo DataDirectory = new(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".data"));
@@ -62,9 +62,9 @@ public static class FortnitePorting
             }
             
             LoadConfig();
-            if (_config.ExportFolder != string.Empty && Directory.Exists(_config.ExportFolder))
-                saveDirectory = new DirectoryInfo(_config.ExportFolder);
-            
+            if (Config.ExportFolder != string.Empty && Directory.Exists(Config.ExportFolder))
+                saveDirectory = new DirectoryInfo(Config.ExportFolder);
+
             LoadProvider();
             
             
@@ -103,14 +103,14 @@ public static class FortnitePorting
             Exit(1);
         }
         
-        if (!_config.bCloseOnFinish)
+        if (!Config.bCloseOnFinish)
             Exit(0);
     }
 
     public static void LoadConfig(string path = "config.json")
     {
-        _config = JsonConvert.DeserializeObject<Configuration>(File.ReadAllText(path));
-        if (_config == null)
+        Config = JsonConvert.DeserializeObject<Configuration>(File.ReadAllText(path));
+        if (Config == null)
         {
             Log.Error("Failed to load config");
             Exit(1);
@@ -119,8 +119,8 @@ public static class FortnitePorting
 
     public static void LoadProvider()
     {
-        var GamePath = _config.PaksFolder;
-        var Key = _config.MainKey;
+        var GamePath = Config.PaksFolder;
+        var Key = Config.MainKey;
 
         var ExtraDirs = new List<DirectoryInfo>
         {
@@ -133,7 +133,7 @@ public static class FortnitePorting
             SearchOption.AllDirectories, true, new VersionContainer(EGame.GAME_UE5_LATEST));
         Provider.Initialize();
         Provider.SubmitKey(new FGuid(), new FAesKey(Key));
-        foreach (var Entry in _config.DynamicKeys)
+        foreach (var Entry in Config.DynamicKeys)
         {
             Provider.SubmitKey(new FGuid(Entry.Guid), new FAesKey(Entry.Key));
         }
@@ -178,7 +178,7 @@ public static class FortnitePorting
         Environment.Exit(code);
     }
 
-    private class Configuration
+    public class Configuration
     {
         public string PaksFolder;
         public string ExportFolder;
