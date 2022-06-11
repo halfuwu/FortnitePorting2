@@ -13,6 +13,7 @@ using CUE4Parse.Utils;
 using CUE4Parse_Conversion.Animations;
 using CUE4Parse_Conversion.Meshes;
 using CUE4Parse_Conversion.Textures;
+using Newtonsoft.Json;
 using Serilog;
 using SkiaSharp;
 using static FortnitePorting.FortnitePorting;
@@ -119,12 +120,12 @@ public static class AssetHelpers
 
             if (selectedStyle.TryGetValue(out UObject[] variantParts, "VariantParts")  && variantParts.Length > 0)
             {
-                export.variantParts = new List<ExportPart>();
+                export.variantParts ??= new List<ExportPart>();
                 ExportCharacterParts(variantParts, export.variantParts);
             }
             if (selectedStyle.TryGetValue(out FStructFallback[] variantMaterials, "VariantMaterials") && variantMaterials.Length > 0)
             {
-                export.variantMaterials = new List<ExportVariantMaterial>();
+                export.variantMaterials ??= new List<ExportVariantMaterial>();
                 foreach (var material in variantMaterials)
                 {
                     if (material.TryGetValue(out UMaterialInstanceConstant overrideMaterial, "OverrideMaterial"))
@@ -142,7 +143,7 @@ public static class AssetHelpers
             
             if (selectedStyle.TryGetValue(out FStructFallback[] variantParams, "VariantMaterialParams") && variantParams.Length > 0)
             {
-                export.variantParameters = new List<ExportVariantParameters>();
+                export.variantParameters ??= new List<ExportVariantParameters>();
                 foreach (var paramData in variantParams)
                 {
                     var paramSet = new ExportVariantParameters();

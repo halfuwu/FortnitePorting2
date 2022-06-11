@@ -6,11 +6,10 @@ public class ExportFile
 {
     public string name;
     public string type;
-    public ExportAnim animPart;
     public List<ExportPart> baseStyle;
-    public List<ExportPart> variantParts;
-    public List<ExportVariantMaterial> variantMaterials;
-    public List<ExportVariantParameters> variantParameters;
+    public List<ExportPart>? variantParts;
+    public List<ExportVariantMaterial>? variantMaterials;
+    public List<ExportVariantParameters>? variantParameters;
 }
 
 public class ExportPart
