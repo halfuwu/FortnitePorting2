@@ -1378,7 +1378,7 @@ class FPImportRecent(Operator):
     def execute(self, context):
         ExportsPath = os.path.join(os.path.dirname(Settings.ConfigFile), "Exports")
         Files = glob.glob(ExportsPath + "/**", recursive=True)
-        Latest = max(Files, key=os.path.getmtime)
+        Latest = max(Files, key=os.path.getctime)
         FPImport.Import(Latest)
         return {'FINISHED'}
 
