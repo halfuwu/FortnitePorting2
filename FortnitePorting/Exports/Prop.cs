@@ -17,7 +17,7 @@ public static class Prop
     {
         ExportFile? Export = null;
         var Asset = Provider.LoadObject("FortniteGame/Content/Playsets/PlaysetProps/" + input);
-        var Name = Asset.Get<FText>("QuantityDisplayName").Text;
+        var Name = Asset.Get<FText>("DisplayName").Text;
         foreach (var (path, file) in Provider.Files)
         {
             var filePath = path.Replace(".uasset", string.Empty);
