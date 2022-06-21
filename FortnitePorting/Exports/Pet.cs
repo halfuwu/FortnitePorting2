@@ -20,7 +20,7 @@ public static class Pet
         {
             var export = new ExportFile();
             export.type = "Pet";
-            export.name = pet.Get<FText>("DisplayName").Text;
+            export.name = pet.Get<FText>("QuantityDisplayName").Text;
             export.baseStyle = new List<ExportPart>();
             
             var exportPart = new ExportPart();

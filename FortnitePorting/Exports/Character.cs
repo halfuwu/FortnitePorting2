@@ -18,7 +18,7 @@ public static class Character
         {
             var export = new ExportFile();
             export.type = "Character";
-            export.name = character.Get<FText>("DisplayName").Text;
+            export.name = character.Get<FText>("QuantityDisplayName").Text;
             if (export.name.Equals("TBD"))
                 export.name = character.Name;
 
@@ -43,7 +43,7 @@ public static class Character
             if (!key.SubstringAfterLast("/").StartsWith("cid_")) continue;
             
             var asset = Provider.LoadObject(key.Replace(".uasset", ""));
-            if (asset.Get<FText>("DisplayName").Text.ToLower().Equals(input.ToLower()))
+            if (asset.Get<FText>("QuantityDisplayName").Text.ToLower().Equals(input.ToLower()))
             {
                 character = asset;
                 break;
@@ -54,7 +54,7 @@ public static class Character
         {
             var export = new ExportFile();
             export.type = "Character";
-            export.name = character.Get<FText>("DisplayName").Text;
+            export.name = character.Get<FText>("QuantityDisplayName").Text;
             
             var styles = character.GetOrDefault("ItemVariants", Array.Empty<UObject>());
             AssetHelpers.ExportStyles(styles, ref export);

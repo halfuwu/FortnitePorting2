@@ -18,7 +18,7 @@ public static class Pickaxe
         {
             var export = new ExportFile();
             export.type = "Pickaxe";
-            export.name = pickaxe.Get<FText>("DisplayName").Text;
+            export.name = pickaxe.Get<FText>("QuantityDisplayName").Text;
             export.baseStyle = new List<ExportPart>();
             
             var mainPart = new ExportPart();

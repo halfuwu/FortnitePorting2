@@ -29,7 +29,7 @@ public static class Weapon
             if (!path.SubstringAfterLast("/").StartsWith("wid_")) continue;
             
             var asset = Provider.LoadObject(path.Replace(".uasset", ""));
-            if (asset.TryGetValue<FText>(out var name, "DisplayName"))
+            if (asset.TryGetValue<FText>(out var name, "QuantityDisplayName"))
             {
                 weaponMap[path] = name.Text;
             }
@@ -44,7 +44,7 @@ public static class Weapon
            if (!name.ToLower().Trim().Equals(input.ToLower())) continue;
            var asset = Provider.LoadObject(path.Replace(".uasset", string.Empty));
            if (weapons.Count == 0)
-               weaponName = asset.GetOrDefault<FText>("DisplayName").Text;
+               weaponName = asset.GetOrDefault<FText>("QuantityDisplayName").Text;
                
            weapons.Add(asset);
         }

@@ -19,7 +19,7 @@ public static class Glider
         {
             var export = new ExportFile();
             export.type = "Glider";
-            export.name = glider.Get<FText>("DisplayName").Text;
+            export.name = glider.Get<FText>("QuantityDisplayName").Text;
             export.baseStyle = new List<ExportPart>();
             
             var exportPart = new ExportPart();

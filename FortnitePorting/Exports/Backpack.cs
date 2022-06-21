@@ -17,7 +17,7 @@ public static class Backpack
         {
             var export = new ExportFile();
             export.type = "Backpack";
-            export.name = backpack.Get<FText>("DisplayName").Text;
+            export.name = backpack.Get<FText>("QuantityDisplayName").Text;
             
             var parts = backpack.Get<UObject[]>("CharacterParts");
             export.baseStyle = new List<ExportPart>();
