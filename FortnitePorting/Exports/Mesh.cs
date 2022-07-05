@@ -65,6 +65,16 @@ public class Mesh
         ExportMeshSection(convertedMesh.LODs[0].Sections, ref part);
     }
 
+    public static void ExportStaticMesh(UStaticMesh staticMesh, ref ExportPart part)
+    {
+        AssetHelpers.ExportObject(staticMesh);
+        part.meshPath = staticMesh.GetPathName();
+
+        staticMesh.TryConvert(out var convertedMesh);
+        if (convertedMesh.LODs.Count == 0) return;
+        ExportMeshSection(convertedMesh.LODs[0].Sections, ref part);
+    }
+
     private static void ExportMeshSection(Lazy<CMeshSection[]> sections, ref ExportPart part)
     {
         part.materials = new List<ExportMaterial>();
